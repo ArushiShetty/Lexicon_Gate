@@ -1417,7 +1417,8 @@ button.linkish:focus-visible {
 .ask-thread {
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 28px var(--space-page) 20px;
   scroll-behavior: smooth;
 }
@@ -1450,18 +1451,13 @@ button.linkish:focus-visible {
   max-width: 28em;
 }
 .chat-turn {
-  width: min(1140px, 76vw);
+  width: 100%;
+  max-width: 1040px;
   margin: 0 auto 20px;
   display: flex;
 }
-@media (max-width: 1200px) {
-  .chat-turn {
-    width: min(1140px, calc(100% - 2 * var(--space-page)));
-  }
-}
 @media (max-width: 768px) {
   .chat-turn {
-    width: 100%;
     margin: 0 auto 14px;
   }
 }
@@ -1704,24 +1700,20 @@ button.linkish:focus-visible {
 
 .ask-composer {
   flex-shrink: 0;
-  width: min(1140px, 76vw);
+  width: 100%;
+  max-width: 1040px;
   margin: 0 auto;
   padding: 0 0 22px;
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-@media (max-width: 1200px) {
-  .ask-composer {
-    width: min(1140px, calc(100% - 2 * var(--space-page)));
-  }
-}
 @media (max-width: 768px) {
   .ask-composer {
-    width: 100%;
     padding: 0 var(--space-page) 16px;
   }
 }
+
 .ask-composer-scope { margin: 0; }
 .ask-sources {
   border: 1px solid var(--hairline-soft);
