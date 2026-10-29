@@ -1,8 +1,24 @@
 const API_ROOT = import.meta.env.VITE_API_BASE_URL ? import.meta.env.VITE_API_BASE_URL.replace(/\/$/, "") : "";
 const BASE = `${API_ROOT}/api`;
 
+let authToken = typeof localStorage !== "undefined" ? localStorage.getItem("selfrag_token") || "" : "";
+
+export function setAuthToken(token) {
+  authToken = token || "";
+  if (typeof localStorage !== "undefined") {
+    if (token) {
+      localStorage.setItem("selfrag_token", token);
+    } else {
+      localStorage.removeItem("selfrag_token");
+    }
+  }
+}
+
 async function request(path, options = {}) {
   const headers = { ...(options.headers || {}) };
+  if (authToken) {
+    headers["Authorization"] = `Bearer ${authToken}`;
+  }
   let response;
   try {
     response = await fetch(`${BASE}${path}`, {
@@ -48,25 +64,37 @@ export const api = {
   me: () => request("/auth/me"),
   lookupResearcher: (researcherId) =>
     request(`/auth/researchers/${encodeURIComponent(researcherId)}`),
-  signup: (payload) =>
-    request("/auth/signup", {
+  signup: async (payload) => {
+    const res = await request("/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
-    }),
-  login: (payload) =>
-    request("/auth/login", {
+    });
+    if (res?.token) setAuthToken(res.token);
+    return res;
+  },
+  login: async (payload) => {
+    const res = await request("/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
-    }),
-  googleLogin: (payload) =>
-    request("/auth/google", {
+    });
+    if (res?.token) setAuthToken(res.token);
+    return res;
+  },
+  googleLogin: async (payload) => {
+    const res = await request("/auth/google", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
-    }),
-  logout: () => request("/auth/logout", { method: "POST" }),
+    });
+    if (res?.token) setAuthToken(res.token);
+    return res;
+  },
+  logout: async () => {
+    setAuthToken("");
+    return request("/auth/logout", { method: "POST" });
+  },
   health: () => request("/health"),
   config: () => request("/config"),
   /**

@@ -198,11 +198,15 @@ export default function AuthScreen({ onSignedIn }) {
     }
     setBusy(true);
     try {
-      await (isSignup
+      const user = await (isSignup
         ? api.signup({ email, password, name })
         : api.login({ email, password }));
-      const confirmed = await api.me();
-      onSignedIn(confirmed);
+      try {
+        const confirmed = await api.me();
+        onSignedIn(confirmed || user);
+      } catch {
+        onSignedIn(user);
+      }
     } catch (err) {
       setError(err.message || "Could not sign in.");
     } finally {

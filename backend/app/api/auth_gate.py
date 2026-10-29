@@ -30,7 +30,12 @@ class AuthGateMiddleware(BaseHTTPMiddleware):
         ):
             return await call_next(request)
         if path.startswith("/api/"):
-            user = get_session(request.cookies.get(COOKIE_NAME))
+            token = request.cookies.get(COOKIE_NAME)
+            if not token:
+                auth_header = request.headers.get("Authorization") or ""
+                if auth_header.startswith("Bearer "):
+                    token = auth_header[7:].strip()
+            user = get_session(token) if token else None
             if user is None:
                 return JSONResponse({"detail": "Not signed in."}, status_code=401)
             request.state.user = user

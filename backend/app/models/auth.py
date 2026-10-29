@@ -27,6 +27,7 @@ class UserPublic(BaseModel):
     email: str
     name: str = ""
     researcher_id: str = ""
+    token: str = ""
 
 
 class ResearcherPublic(BaseModel):
