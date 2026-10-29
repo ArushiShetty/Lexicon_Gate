@@ -129,6 +129,12 @@ export const api = {
     return request("/documents/upload", { method: "POST", body: data });
   },
   deleteDocument: (id) => request(`/documents/${id}`, { method: "DELETE" }),
+  updateDocument: (id, payload) =>
+    request(`/documents/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
   searchPapers: (q, opts = {}) => {
     const limit = opts.limit ?? 10;
     const filter = opts.filter ?? "all";

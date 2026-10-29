@@ -67,17 +67,46 @@ class KnowledgeBase:
         path = Path(path)
         pages = load_document(path)
         biblio = extract_bibliography(name or path.name, path=path)
+
+        from ..ingestion.metadata_extractor import (
+            extract_metadata_from_text,
+            is_generic_authors,
+            is_generic_title,
+        )
+
+        p_title, p_authors, p_year = (None, [], None)
+        doc_name = name or path.name
+        if pages and pages[0].text:
+            p_title, p_authors, p_year = extract_metadata_from_text(pages[0].text, filename=doc_name)
+
+        eff_title = title
+        if not eff_title:
+            if not is_generic_title(biblio.title, doc_name):
+                eff_title = biblio.title
+            elif p_title:
+                eff_title = p_title
+            else:
+                eff_title = biblio.title
+
+        eff_authors = list(authors) if authors is not None else biblio.authors
+        if is_generic_authors(eff_authors) and p_authors:
+            eff_authors = p_authors
+
+        eff_year = year if year is not None else biblio.year
+        if eff_year is None and p_year is not None:
+            eff_year = p_year
+
         return self.ingest_pages(
-            name=name or path.name,
+            name=doc_name,
             pages=pages,
             source=source,
             media_type=_media_type(path.suffix),
             source_quality=source_quality,
             tags=tags,
             rebuild=rebuild,
-            title=title or biblio.title,
-            authors=list(authors) if authors is not None else biblio.authors,
-            year=year if year is not None else biblio.year,
+            title=eff_title,
+            authors=eff_authors,
+            year=eff_year,
             venue=venue if venue is not None else biblio.venue,
             doi=doi if doi is not None else biblio.doi,
         )
@@ -98,6 +127,34 @@ class KnowledgeBase:
     ) -> tuple[Document, list[Chunk]]:
         pages = load_bytes(name, data)
         biblio = extract_bibliography(name, data=data)
+
+        from ..ingestion.metadata_extractor import (
+            extract_metadata_from_text,
+            is_generic_authors,
+            is_generic_title,
+        )
+
+        p_title, p_authors, p_year = (None, [], None)
+        if pages and pages[0].text:
+            p_title, p_authors, p_year = extract_metadata_from_text(pages[0].text, filename=name)
+
+        eff_title = title
+        if not eff_title:
+            if not is_generic_title(biblio.title, name):
+                eff_title = biblio.title
+            elif p_title:
+                eff_title = p_title
+            else:
+                eff_title = biblio.title
+
+        eff_authors = list(authors) if authors is not None else biblio.authors
+        if is_generic_authors(eff_authors) and p_authors:
+            eff_authors = p_authors
+
+        eff_year = year if year is not None else biblio.year
+        if eff_year is None and p_year is not None:
+            eff_year = p_year
+
         return self.ingest_pages(
             name=name,
             pages=pages,
@@ -106,9 +163,9 @@ class KnowledgeBase:
             source_quality=source_quality,
             tags=tags,
             rebuild=rebuild,
-            title=title or biblio.title,
-            authors=list(authors) if authors is not None else biblio.authors,
-            year=year if year is not None else biblio.year,
+            title=eff_title,
+            authors=eff_authors,
+            year=eff_year,
             venue=venue if venue is not None else biblio.venue,
             doi=doi if doi is not None else biblio.doi,
         )

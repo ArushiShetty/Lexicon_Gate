@@ -1331,8 +1331,9 @@ function FindPapers({ onImported, onRecentsChange, restore }) {
   const FILTERS = [
     { id: "all", label: "All" },
     { id: "academic", label: "Academic Papers" },
-    { id: "research_web", label: "Research Websites" },
+    { id: "ieee", label: "IEEE Xplore" },
     { id: "open_access", label: "Open Access" },
+    { id: "research_web", label: "Research Websites" },
   ];
   const [query, setQuery] = useState(restore?.query || "");
   const [filter, setFilter] = useState(restore?.filter || "all");
@@ -1499,22 +1500,80 @@ function FindPapers({ onImported, onRecentsChange, restore }) {
           </button>
           {results?.provider && (
             <span className="status">
-              Results from {(results.providers_used || String(results.provider).split("+")).filter(Boolean).join(", ").replaceAll("_", " ") || results.provider}
+              Results from {(results.providers_used || String(results.provider).split("+")).filter(Boolean).map(p => ({
+                ieee: "IEEE Xplore",
+                europe_pmc: "Europe PMC",
+                semantic_scholar: "Semantic Scholar",
+                openalex: "OpenAlex",
+                arxiv: "arXiv",
+                crossref: "CrossRef",
+                tavily: "Web",
+              }[p] || p.replaceAll("_", " "))).join(", ")}
             </span>
           )}
         </div>
+        {query.trim() && (
+          <div className="find-external-sources" style={{ marginTop: 12, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+            <span className="status" style={{ margin: 0, fontSize: "0.82rem" }}>Quick launch query in:</span>
+            <a
+              className="chip ghost"
+              href={`https://scholar.google.com/scholar?q=${encodeURIComponent(query.trim())}`}
+              target="_blank"
+              rel="noreferrer"
+              style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}
+            >
+              🎓 Google Scholar
+            </a>
+            <a
+              className="chip ghost"
+              href={`https://ieeexplore.ieee.org/search/searchresult.jsp?newsearch=true&queryText=${encodeURIComponent(query.trim())}`}
+              target="_blank"
+              rel="noreferrer"
+              style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}
+            >
+              ⚡ IEEE Xplore
+            </a>
+            <a
+              className="chip ghost"
+              href={`https://arxiv.org/search/?query=${encodeURIComponent(query.trim())}&searchtype=all`}
+              target="_blank"
+              rel="noreferrer"
+              style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}
+            >
+              📚 arXiv
+            </a>
+            <a
+              className="chip ghost"
+              href={`https://www.semanticscholar.org/search?q=${encodeURIComponent(query.trim())}`}
+              target="_blank"
+              rel="noreferrer"
+              style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}
+            >
+              🌐 Semantic Scholar
+            </a>
+          </div>
+        )}
       </form>
       {error && <StatusBanner tone="error">{error}</StatusBanner>}
       {message && <StatusBanner tone="success">{message}</StatusBanner>}
       {(results?.papers || []).map((paper) => {
         const avail = availabilityLabel(paper);
         const blurb = paper.summary || paper.abstract || "";
+        const sourceLabel = {
+          ieee: "IEEE Xplore",
+          europe_pmc: "Europe PMC",
+          semantic_scholar: "Semantic Scholar",
+          openalex: "OpenAlex",
+          arxiv: "arXiv",
+          crossref: "CrossRef",
+          tavily: "Web",
+        }[paper.source] || (paper.source || "").replaceAll("_", " ");
         return (
           <div key={`${paper.source}-${paper.paper_id}`} className="card paper-row">
             <div>
               <strong>{paper.title}</strong>
               <div className="status" style={{ margin: "4px 0 0" }}>
-                <span className="paper-source-badge">{(paper.source || "").replaceAll("_", " ")}</span>
+                <span className="paper-source-badge">{sourceLabel}</span>
                 {(paper.authors || []).slice(0, 8).join(", ") || (paper.result_kind === "web" ? "Web result" : "Unknown author")}
                 {paper.year ? ` · ${paper.year}` : ""}
                 {paper.venue ? ` · ${paper.venue}` : ""}
@@ -1562,8 +1621,43 @@ function Library({ docs, onChange }) {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [uploadCount, setUploadCount] = useState(0);
+  const [editingDoc, setEditingDoc] = useState(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editAuthors, setEditAuthors] = useState("");
+  const [editYear, setEditYear] = useState("");
   const fileRef = useRef(null);
   const MAX_UPLOAD_FILES = 20;
+
+  function startEdit(doc) {
+    setEditingDoc(doc);
+    setEditTitle(doc.title || doc.name || "");
+    setEditAuthors((doc.authors || []).join(", "));
+    setEditYear(doc.year ? String(doc.year) : "");
+  }
+
+  async function saveEdit(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!editingDoc) return;
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      const authors = editAuthors.split(",").map((a) => a.trim()).filter(Boolean);
+      const parsedYear = editYear.trim() ? parseInt(editYear.trim(), 10) : null;
+      await api.updateDocument(editingDoc.document_id, {
+        title: editTitle.trim(),
+        authors,
+        year: isNaN(parsedYear) ? null : parsedYear,
+      });
+      setEditingDoc(null);
+      await onChange();
+      setMessage("Paper title and authors updated.");
+    } catch (err) {
+      setError(err.message || "Failed to update paper details.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function uploadFiles(list) {
     const files = Array.from(list || []);
@@ -1671,6 +1765,48 @@ function Library({ docs, onChange }) {
       </div>
       {error && <StatusBanner tone="error">{error}</StatusBanner>}
       {message && <StatusBanner tone="success">{message}</StatusBanner>}
+      {editingDoc && (
+        <form className="card" onSubmit={saveEdit} style={{ marginBottom: 16, border: "1px solid var(--accent-orange)" }}>
+          <h4 style={{ margin: "0 0 12px" }}>Edit Paper Citation Details ({editingDoc.name})</h4>
+          <label style={{ display: "block", marginBottom: 8, fontSize: "0.88rem" }}>
+            Paper Title:
+            <input
+              style={{ width: "100%", marginTop: 4 }}
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              placeholder="Full paper title"
+              required
+            />
+          </label>
+          <label style={{ display: "block", marginBottom: 8, fontSize: "0.88rem" }}>
+            Authors (comma-separated):
+            <input
+              style={{ width: "100%", marginTop: 4 }}
+              value={editAuthors}
+              onChange={(e) => setEditAuthors(e.target.value)}
+              placeholder="e.g. Ashish Vaswani, Noam Shazeer, Niki Parmar"
+            />
+          </label>
+          <label style={{ display: "block", marginBottom: 12, fontSize: "0.88rem" }}>
+            Year:
+            <input
+              style={{ width: 140, marginTop: 4 }}
+              type="number"
+              value={editYear}
+              onChange={(e) => setEditYear(e.target.value)}
+              placeholder="e.g. 2023"
+            />
+          </label>
+          <div className="row" style={{ gap: 8 }}>
+            <button className="primary" type="submit" disabled={busy || !editTitle.trim()}>
+              Save Details
+            </button>
+            <button className="ghost" type="button" disabled={busy} onClick={() => setEditingDoc(null)}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
       {!docs.length && (
         <EmptyState title="No sources yet">
           Click Upload files and select several at once, or search academic papers in{" "}
@@ -1703,7 +1839,10 @@ function Library({ docs, onChange }) {
                     </div>
                   </td>
                   <td className="num">{doc.n_chunks}</td>
-                  <td className="num">
+                  <td className="num" style={{ whiteSpace: "nowrap" }}>
+                    <button className="ghost" style={{ marginRight: 6 }} disabled={busy} onClick={() => startEdit(doc)}>
+                      Edit details
+                    </button>
                     <button className="danger" disabled={busy} onClick={() => remove(doc.document_id)}>
                       Remove
                     </button>

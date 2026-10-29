@@ -213,7 +213,7 @@ def search_papers_detailed(
     settings = settings or get_settings()
     limit = max(1, min(int(limit), 25))
     filt = (search_filter or "all").strip().lower()
-    if filt not in {"all", "academic", "research_web", "open_access"}:
+    if filt not in {"all", "academic", "research_web", "open_access", "ieee"}:
         filt = "all"
     return _search_with_filter_detailed(
         query, limit, filt, get_json=get_json, settings=settings
@@ -253,6 +253,10 @@ def _search_with_filter_detailed(
         buckets: list[list[PaperHit]] = []
         academic_jobs: list[tuple[str, Callable[[], list[PaperHit]]]] = [
             (
+                "ieee",
+                lambda: search_ieee(query, limit, get_json=get_json, settings=settings),
+            ),
+            (
                 "semantic_scholar",
                 lambda: search_semantic_scholar(
                     query, limit, get_json=get_json, settings=settings
@@ -266,8 +270,12 @@ def _search_with_filter_detailed(
                 "arxiv",
                 lambda: search_arxiv(query, limit, settings=settings),
             ),
+            (
+                "europe_pmc",
+                lambda: search_europe_pmc(query, limit, get_json=get_json, settings=settings),
+            ),
         ]
-        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as pool:
             futures = {pool.submit(job): name for name, job in academic_jobs}
             for fut in concurrent.futures.as_completed(futures):
                 name = futures[fut]
@@ -312,7 +320,11 @@ def _search_with_filter_detailed(
             used.append("tavily")
         return part
 
-    if filt == "research_web":
+    if filt == "ieee":
+        hits = search_ieee(query, limit, get_json=get_json, settings=settings)
+        if hits:
+            used.append("ieee")
+    elif filt == "research_web":
         hits = run_web(research_only=True)[:limit]
     elif filt == "academic":
         hits = run_academic()
@@ -415,6 +427,97 @@ def search_crossref(
     return [hit for row in rows if (hit := paper_from_crossref(row))][:limit]
 
 
+def search_ieee(
+    query: str,
+    limit: int,
+    *,
+    get_json: JsonGetter,
+    settings: Settings,
+) -> list[PaperHit]:
+    """Query official IEEE publications via CrossRef filtered to IEEE's prefix 10.1109."""
+    payload = get_json(
+        CROSSREF_WORKS,
+        params={"query": query, "rows": limit, "filter": "prefix:10.1109"},
+        headers=openalex_headers(settings),
+        timeout=_timeout(settings),
+    )
+    message = payload.get("message") if isinstance(payload.get("message"), dict) else payload
+    rows = (message or {}).get("items") or []
+    hits: list[PaperHit] = []
+    for row in rows:
+        hit = paper_from_crossref(row)
+        if hit:
+            hit.source = "ieee"
+            if not hit.venue or "ieee" not in hit.venue.lower():
+                hit.venue = f"IEEE · {hit.venue}" if hit.venue else "IEEE Xplore"
+            hits.append(hit)
+    return hits[:limit]
+
+
+def search_europe_pmc(
+    query: str,
+    limit: int,
+    *,
+    get_json: JsonGetter,
+    settings: Settings,
+) -> list[PaperHit]:
+    """Search Europe PMC open scientific index."""
+    try:
+        payload = get_json(
+            "https://www.ebi.ac.uk/europepmc/webservices/rest/search",
+            params={"query": query, "format": "json", "pageSize": limit, "resultType": "core"},
+            headers=openalex_headers(settings),
+            timeout=_timeout(settings),
+        )
+    except Exception as exc:
+        logger.warning("Europe PMC search error: %s", exc)
+        return []
+    res_list = payload.get("resultList") or {}
+    rows = res_list.get("result") or []
+    hits: list[PaperHit] = []
+    for row in rows:
+        title = (row.get("title") or "").strip().rstrip(".")
+        if not title:
+            continue
+        author_str = row.get("authorString") or ""
+        authors = [a.strip() for a in author_str.split(",") if a.strip()][:10]
+        year = None
+        if row.get("pubYear"):
+            try:
+                year = int(row.get("pubYear"))
+            except (ValueError, TypeError):
+                year = None
+        venue = (row.get("journalTitle") or "").strip() or None
+        doi = (row.get("doi") or "").strip() or None
+        abstract = (row.get("abstractText") or "").strip() or None
+        pdf_url = None
+        open_access = (row.get("isOpenAccess") or "").upper() == "Y"
+        for ft in (row.get("fullTextUrlList") or {}).get("fullTextUrl") or []:
+            if ft.get("documentStyle") == "pdf":
+                pdf_url = ft.get("url")
+                break
+        url = f"https://doi.org/{doi}" if doi else (pdf_url or f"https://europepmc.org/article/MED/{row.get('id')}")
+        hits.append(
+            PaperHit(
+                paper_id=str(row.get("id") or doi or title),
+                title=title,
+                authors=authors,
+                year=year,
+                venue=venue,
+                citation_count=_as_int(row.get("citedByCount"), 0),
+                abstract=abstract,
+                doi=doi,
+                pdf_url=pdf_url,
+                source="europe_pmc",
+                open_access=open_access,
+                url=url,
+                result_kind="paper",
+                full_text_available=bool(pdf_url),
+            )
+        )
+    return hits[:limit]
+
+
 def fetch_paper(
     paper_id: str,
     source: str,
@@ -442,7 +545,7 @@ def fetch_paper(
             timeout=_timeout(settings),
         )
         return paper_from_openalex(payload)
-    if source == "crossref":
+    if source in {"crossref", "ieee"}:
         doi = paper_id.removeprefix("https://doi.org/").removeprefix("http://doi.org/")
         payload = get_json(
             CROSSREF_WORK.format(paper_id=quote(doi, safe="")),
@@ -450,7 +553,12 @@ def fetch_paper(
             timeout=_timeout(settings),
         )
         message = payload.get("message") if isinstance(payload.get("message"), dict) else payload
-        return paper_from_crossref(message if isinstance(message, dict) else payload)
+        hit = paper_from_crossref(message if isinstance(message, dict) else payload)
+        if hit and source == "ieee":
+            hit.source = "ieee"
+            if not hit.venue or "ieee" not in hit.venue.lower():
+                hit.venue = f"IEEE · {hit.venue}" if hit.venue else "IEEE Xplore"
+        return hit
     if source == "arxiv":
         from .arxiv_search import search_arxiv
 

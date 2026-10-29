@@ -246,8 +246,33 @@ async def upload_documents(files: list[UploadFile] = File(...)) -> UploadRespons
 
 @router.get("/documents", response_model=DocumentListResponse, tags=["documents"])
 def list_documents() -> DocumentListResponse:
+    from ..services.ingestion.metadata_extractor import (
+        extract_metadata_from_text,
+        is_generic_authors,
+        is_generic_title,
+    )
+
     kb = get_knowledge_base()
     docs = kb.store.list_documents()
+    updated_any = False
+    for doc in docs:
+        if is_generic_title(doc.title, doc.name) or is_generic_authors(doc.authors):
+            chunks = kb.store.all_chunks([doc.document_id])
+            if chunks and chunks[0].text:
+                t, a, y = extract_metadata_from_text(chunks[0].text, filename=doc.name)
+                patch = {}
+                if t and is_generic_title(doc.title, doc.name):
+                    patch["title"] = t
+                if a and is_generic_authors(doc.authors):
+                    patch["authors"] = a
+                if y and doc.year is None:
+                    patch["year"] = y
+                if patch:
+                    kb.update_bibliography(doc.document_id, **patch)
+                    updated_any = True
+    if updated_any:
+        docs = kb.store.list_documents()
+
     return DocumentListResponse(
         documents=docs,
         total_documents=len(docs),
@@ -337,10 +362,10 @@ def papers_search(
     if not query:
         raise HTTPException(status_code=400, detail="Search query is required.")
     filt = (filter or "all").strip().lower()
-    if filt not in {"all", "academic", "research_web", "open_access"}:
+    if filt not in {"all", "academic", "research_web", "open_access", "ieee"}:
         raise HTTPException(
             status_code=400,
-            detail="filter must be one of: all, academic, research_web, open_access",
+            detail="filter must be one of: all, academic, research_web, open_access, ieee",
         )
     try:
         papers, provider, providers_used, notes = search_papers_detailed(
