@@ -14,7 +14,7 @@ export function setAuthToken(token) {
   }
 }
 
-async function request(path, options = {}) {
+async function request(path, options = {}, retries = 2) {
   const headers = { ...(options.headers || {}) };
   if (authToken) {
     headers["Authorization"] = `Bearer ${authToken}`;
@@ -28,6 +28,10 @@ async function request(path, options = {}) {
     });
   } catch (err) {
     const raw = String(err?.message || "");
+    if ((raw === "Failed to fetch" || err?.name === "TypeError") && retries > 0) {
+      await new Promise((r) => setTimeout(r, 2000));
+      return request(path, options, retries - 1);
+    }
     if (raw === "Failed to fetch" || err?.name === "TypeError") {
       throw new Error(
         "Could not reach the server. The backend may be waking up on Render (cold start takes ~30-50s) or rebuilding. Please wait a moment and refresh."
@@ -42,6 +46,10 @@ async function request(path, options = {}) {
       !path.startsWith("/stories/public")
     ) {
       window.dispatchEvent(new Event("selfrag-auth-lost"));
+    }
+    if ((response.status === 502 || response.status === 503) && retries > 0) {
+      await new Promise((r) => setTimeout(r, 3000));
+      return request(path, options, retries - 1);
     }
     let detail = response.statusText;
     try {

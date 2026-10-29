@@ -129,6 +129,13 @@ export default function App() {
 
   useEffect(() => {
     refresh();
+    // Send a non-blocking warming ping and keepalive heartbeat every 8 minutes
+    // so Render does not spin down into cold sleep while the user has the app open
+    api.health().catch(() => {});
+    const pingTimer = setInterval(() => {
+      api.health().catch(() => {});
+    }, 8 * 60 * 1000);
+    return () => clearInterval(pingTimer);
   }, [refresh]);
 
   function toggleSidebar() {
