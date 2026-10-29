@@ -1,4 +1,5 @@
-const BASE = "/api";
+const API_ROOT = import.meta.env.VITE_API_BASE_URL ? import.meta.env.VITE_API_BASE_URL.replace(/\/$/, "") : "";
+const BASE = `${API_ROOT}/api`;
 
 async function request(path, options = {}) {
   const headers = { ...(options.headers || {}) };
