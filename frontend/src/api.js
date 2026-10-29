@@ -30,7 +30,7 @@ async function request(path, options = {}) {
     const raw = String(err?.message || "");
     if (raw === "Failed to fetch" || err?.name === "TypeError") {
       throw new Error(
-        "Could not reach the server. Start the backend on port 8000, then refresh."
+        "Could not reach the server. The backend may be waking up on Render (cold start takes ~30-50s) or rebuilding. Please wait a moment and refresh."
       );
     }
     throw err;
