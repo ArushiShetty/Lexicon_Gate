@@ -1,7 +1,4 @@
-const API_ROOT = (import.meta.env.VITE_API_BASE_URL || "").trim().replace(/\/$/, "")
-  || (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1"
-      ? "https://lexicon-gate-backend.onrender.com"
-      : "");
+const API_ROOT = (import.meta.env.VITE_API_BASE_URL || "").trim().replace(/\/$/, "");
 const BASE = `${API_ROOT}/api`;
 
 let authToken = typeof localStorage !== "undefined" ? localStorage.getItem("selfrag_token") || "" : "";

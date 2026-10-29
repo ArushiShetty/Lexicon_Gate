@@ -40,12 +40,22 @@ export function EmptyState({ title, children, action = null }) {
   );
 }
 
-export function StatusBanner({ tone = "info", children, role }) {
+export function StatusBanner({ tone = "info", children, role, onDismiss }) {
   if (!children) return null;
   const r = role || (tone === "error" ? "alert" : "status");
   return (
-    <p className={`status-banner status-banner-${tone}`} role={r}>
-      {children}
+    <p className={`status-banner status-banner-${tone}`} role={r} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <span>{children}</span>
+      {onDismiss && (
+        <button
+          type="button"
+          onClick={onDismiss}
+          style={{ background: "transparent", border: "none", color: "inherit", cursor: "pointer", fontSize: "1.2rem", padding: "0 6px", lineHeight: 1 }}
+          aria-label="Dismiss"
+        >
+          ×
+        </button>
+      )}
     </p>
   );
 }

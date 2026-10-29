@@ -1823,8 +1823,8 @@ function Library({ docs, onChange }) {
         <p className="spotlight-kicker">Your sources</p>
         <p>Everything Ask retrieves from lives here — imported papers and files you upload.</p>
       </div>
-      {error && <StatusBanner tone="error">{error}</StatusBanner>}
-      {message && <StatusBanner tone="success">{message}</StatusBanner>}
+      {error && <StatusBanner tone="error" onDismiss={() => setError("")}>{error}</StatusBanner>}
+      {message && <StatusBanner tone="success" onDismiss={() => setMessage("")}>{message}</StatusBanner>}
       {editingDoc && (
         <form className="card" onSubmit={saveEdit} style={{ marginBottom: 16, border: "1px solid var(--accent-orange)" }}>
           <h4 style={{ margin: "0 0 12px" }}>Edit Paper Citation Details ({editingDoc.name})</h4>
