@@ -1,4 +1,7 @@
-const API_ROOT = import.meta.env.VITE_API_BASE_URL ? import.meta.env.VITE_API_BASE_URL.replace(/\/$/, "") : "";
+const API_ROOT = (import.meta.env.VITE_API_BASE_URL || "").trim().replace(/\/$/, "")
+  || (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1"
+      ? "https://lexicon-gate-backend.onrender.com"
+      : "");
 const BASE = `${API_ROOT}/api`;
 
 let authToken = typeof localStorage !== "undefined" ? localStorage.getItem("selfrag_token") || "" : "";
@@ -14,7 +17,7 @@ export function setAuthToken(token) {
   }
 }
 
-async function request(path, options = {}, retries = 2) {
+async function request(path, options = {}, retries = 3) {
   const headers = { ...(options.headers || {}) };
   if (authToken) {
     headers["Authorization"] = `Bearer ${authToken}`;
@@ -29,7 +32,8 @@ async function request(path, options = {}, retries = 2) {
   } catch (err) {
     const raw = String(err?.message || "");
     if ((raw === "Failed to fetch" || err?.name === "TypeError") && retries > 0) {
-      await new Promise((r) => setTimeout(r, 2000));
+      const delay = (4 - retries) * 1500;
+      await new Promise((r) => setTimeout(r, delay));
       return request(path, options, retries - 1);
     }
     if (raw === "Failed to fetch" || err?.name === "TypeError") {
