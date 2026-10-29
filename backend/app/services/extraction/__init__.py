@@ -1,0 +1,1 @@
+"""Per-paper structured extraction."""

@@ -1,0 +1,5 @@
+# CPU-capable NLI claim verification. Not required for the extractive demo path.
+# Primary checkpoint: cross-encoder/nli-deberta-v3-xsmall (DeBERTa-v3 NLI).
+# Fallback checkpoint: typeform/distilbert-base-uncased-mnli.
+transformers>=4.36.0
+torch>=2.1.0

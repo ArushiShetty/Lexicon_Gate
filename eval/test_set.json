@@ -1,0 +1,303 @@
+{
+  "schema_version": 1,
+  "labeling_status": "unlabeled",
+  "default_k": 5,
+  "description": "Fill these rows against YOUR indexed papers. Empty query strings are skipped by eval/run_eval.py. Do not invent relevant_chunk_ids or expected_facts.",
+  "fields": {
+    "id": "stable query id",
+    "query": "the question you will ask Ask",
+    "relevant_chunk_ids": "chunk_id values from --dump-chunks (ground-truth relevant passages)",
+    "expected_facts": "short factual strings copied from those papers that a correct answer should contain",
+    "notes": "optional labeling notes"
+  },
+  "how_to_label": [
+    "Upload papers in the Library UI (or ingest into the same backend data dir).",
+    "From the repo root: python eval/run_eval.py --dump-chunks",
+    "Open eval/output/index_chunks.csv and copy real chunk_id values into relevant_chunk_ids.",
+    "Write expected_facts from the paper text, not from a model answer.",
+    "Set labeling_status to labeled when at least some rows have query + gold fields.",
+    "Run: python eval/run_eval.py"
+  ],
+  "entries": [
+    {
+      "id": "q001",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q002",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q003",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q004",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q005",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q006",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q007",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q008",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q009",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q010",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q011",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q012",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q013",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q014",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q015",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q016",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q017",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q018",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q019",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q020",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q021",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q022",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q023",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q024",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q025",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q026",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q027",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q028",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q029",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q030",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q031",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q032",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q033",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q034",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q035",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q036",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q037",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q038",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q039",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    },
+    {
+      "id": "q040",
+      "query": "",
+      "relevant_chunk_ids": [],
+      "expected_facts": [],
+      "notes": ""
+    }
+  ]
+}
