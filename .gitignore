@@ -10,6 +10,7 @@ backend/data/index/*
 !backend/data/index/documents.json
 !backend/data/index/chunks.json
 !backend/data/index/paper_extractions.json
+!backend/data/index/bm25.pkl
 backend/data/uploads/
 backend/data/results/
 backend/data/auth/
