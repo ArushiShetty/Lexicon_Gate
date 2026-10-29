@@ -43,7 +43,25 @@ export default function App() {
   const [session, setSession] = useState(undefined);
   const [page, setPage] = useState("ask");
   const [health, setHealth] = useState(null);
-  const [docs, setDocs] = useState([]);
+  const [docs, setDocs] = useState(() => {
+    try {
+      const saved = localStorage.getItem("lexicon-cached-docs");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const updateDocs = useCallback((newDocs) => {
+    setDocs(newDocs || []);
+    try {
+      if (Array.isArray(newDocs)) {
+        localStorage.setItem("lexicon-cached-docs", JSON.stringify(newDocs));
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
   const [lastResult, setLastResult] = useState(null);
   const [selectedEvidence, setSelectedEvidence] = useState(null);
   const [history, setHistory] = useState([]);
@@ -111,24 +129,29 @@ export default function App() {
   }, [session]);
 
   const refresh = useCallback(async () => {
-    if (!session) return;
     try {
       const [h, d, recent] = await Promise.all([
-        api.health(),
-        api.documents(),
+        api.health().catch(() => null),
+        api.documents().catch(() => null),
         api.recent().catch(() => []),
       ]);
-      setHealth(h);
-      setDocs(d.documents || []);
+      if (h) setHealth(h);
+      if (d?.documents) updateDocs(d.documents);
       setHistory(Array.isArray(recent) ? recent : []);
-      await loadSidebarRecents();
+      if (session) await loadSidebarRecents();
     } catch (err) {
       console.warn(err);
     }
-  }, [session, loadSidebarRecents]);
+  }, [session, loadSidebarRecents, updateDocs]);
 
   useEffect(() => {
+    // Immediately fetch library documents so they populate right away
+    api.documents().then((d) => {
+      if (d?.documents) updateDocs(d.documents);
+    }).catch(console.warn);
+
     refresh();
+
     // Send a non-blocking warming ping and keepalive heartbeat every 8 minutes
     // so Render does not spin down into cold sleep while the user has the app open
     api.health().catch(() => {});
@@ -136,7 +159,7 @@ export default function App() {
       api.health().catch(() => {});
     }, 8 * 60 * 1000);
     return () => clearInterval(pingTimer);
-  }, [refresh]);
+  }, [refresh, updateDocs]);
 
   function toggleSidebar() {
     setSidebarOpen((open) => {
