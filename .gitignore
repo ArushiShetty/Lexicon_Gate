@@ -6,7 +6,10 @@ __pycache__/
 .mypy_cache/
 node_modules/
 dist/
-backend/data/index/
+backend/data/index/*
+!backend/data/index/documents.json
+!backend/data/index/chunks.json
+!backend/data/index/paper_extractions.json
 backend/data/uploads/
 backend/data/results/
 backend/data/auth/
