@@ -20,7 +20,12 @@ def supabase_enabled() -> bool:
 
 
 def _base_url() -> str:
-    return (get_settings().supabase_url or "").rstrip("/")
+    raw = (get_settings().supabase_url or "").strip().rstrip("/")
+    if raw.endswith("/rest/v1"):
+        raw = raw[:-8].rstrip("/")
+    elif raw.endswith("/rest"):
+        raw = raw[:-5].rstrip("/")
+    return raw
 
 
 def _headers(*, prefer: str | None = None) -> dict[str, str]:
