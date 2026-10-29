@@ -10,20 +10,33 @@ from typing import Iterable
 from ...config import BACKEND_ROOT
 from ...models.events import Event, event_timing, is_registration_open
 
+from pathlib import Path
+
 _SEED = BACKEND_ROOT / "data" / "events" / "catalog.json"
+_BUNDLED_SEED = Path(__file__).resolve().parent / "catalog.json"
+
+
+def _resolve_seed() -> Path | None:
+    if _SEED.exists():
+        return _SEED
+    if _BUNDLED_SEED.exists():
+        return _BUNDLED_SEED
+    return None
 
 
 @lru_cache(maxsize=4)
 def _raw_catalog(mtime: float) -> tuple[dict, ...]:
-    if not _SEED.exists():
+    path = _resolve_seed()
+    if path is None or not path.exists():
         return tuple()
-    payload = json.loads(_SEED.read_text(encoding="utf-8"))
+    payload = json.loads(path.read_text(encoding="utf-8"))
     items = payload.get("events", []) if isinstance(payload, dict) else payload
     return tuple(items) if isinstance(items, list) else tuple()
 
 
 def all_events() -> list[Event]:
-    mtime = _SEED.stat().st_mtime if _SEED.exists() else 0.0
+    path = _resolve_seed()
+    mtime = path.stat().st_mtime if (path is not None and path.exists()) else 0.0
     return [Event.model_validate(item) for item in _raw_catalog(mtime)]
 
 

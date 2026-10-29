@@ -14,7 +14,8 @@ backend/data/workspace/
 backend/data/paper_drafts/
 backend/data/projects/
 backend/data/stories/
-backend/data/events/
+backend/data/events/*
+!backend/data/events/catalog.json
 eval/output/
 *.npy
 *.pkl

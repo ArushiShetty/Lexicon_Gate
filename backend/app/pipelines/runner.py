@@ -498,11 +498,29 @@ class PipelineRunner:
                 )
 
         is_summary_req = bool(
-            re.search(r"\b(summariz\w*|overview|synthesis|abstract)\b", original_query, re.I)
+            re.search(
+                r"\b(summariz\w*|summary|overview|synthesis|synthesize|abstract|compare|comparison|review|takeaways?|breakdown)\b",
+                original_query,
+                re.I,
+            )
+            or (
+                re.search(r"\b(papers?|documents?|corpus|studies|literature)\b", original_query, re.I)
+                and re.search(r"\b(what|explain|tell|show|describe|findings)\b", original_query, re.I)
+            )
         )
         scoped_ids = list(document_ids or [])
-        if not scoped_ids and is_summary_req and re.search(r"\b(all|both|each|multiple|papers|studies)\b", original_query, re.I):
-            scoped_ids = [d.document_id for d in self.kb.store.list_documents()][:5]
+        if not scoped_ids and is_summary_req:
+            all_doc_ids = [d.document_id for d in self.kb.store.list_documents()]
+            if len(all_doc_ids) >= 2:
+                if (
+                    re.search(
+                        r"\b(all|both|each|multiple|papers?|studies|corpus|documents?|findings|work|literature)\b",
+                        original_query,
+                        re.I,
+                    )
+                    or not re.search(r"\b(what is|define|who is)\b", original_query, re.I)
+                ):
+                    scoped_ids = all_doc_ids[:8]
 
         if is_summary_req and len(scoped_ids) >= 2:
             summary_ans, summary_evidence, summary_structs = self._generate_multi_paper_summary(
