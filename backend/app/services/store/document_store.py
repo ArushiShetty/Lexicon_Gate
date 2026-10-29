@@ -176,6 +176,7 @@ class DocumentStore:
                                 chunk_index=piece.chunk_index,
                                 source=source,
                                 source_quality=source_quality,
+                                extra=piece.extra,
                             ),
                         )
                     )

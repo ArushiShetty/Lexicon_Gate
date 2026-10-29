@@ -768,10 +768,13 @@ def polarity_conflict(text_a: str, text_b: str) -> float:
     antonym_signal = min(1.0, antonym_hits / 1.0)
 
     if antonym_signal and parity:
-        return min(1.0, 0.55 * antonym_signal + 0.45 * parity)
+        return min(1.0, 0.65 * antonym_signal + 0.35 * parity)
     if antonym_signal:
-        return min(1.0, antonym_signal)
-    return parity * 0.75
+        return min(1.0, 0.80 * antonym_signal)
+    # Parity alone (differing negation count) without any antonym or direct opposition
+    # does NOT establish contradiction; different papers describing different mechanisms
+    # are not contradictory.
+    return 0.0
 
 
 _METADATA_NUM_RE = re.compile(
@@ -780,6 +783,14 @@ _METADATA_NUM_RE = re.compile(
     r"|\[\d+\]",
     re.I,
 )
+
+_COMMON_METRICS = frozenset({
+    "accuracy", "acc", "bleu", "rouge", "f1", "f1-score", "loss",
+    "perplexity", "latency", "throughput", "error", "wer", "mae", "rmse",
+    "map", "mrr", "auc", "roc", "precision", "recall", "params", "parameters",
+    "rate", "ratio", "probability", "prob", "score", "threshold", "percentage",
+    "size", "layers", "epochs", "units",
+})
 
 
 def substantive_numeric_values(text: str) -> list[float]:
@@ -803,7 +814,7 @@ def numeric_conflict(text_a: str, text_b: str) -> float:
     """Detect incompatible numeric assertions between two statements.
     
     Excludes publication years, page numbers, citation numbers, and different
-    experimental conditions.
+    experimental conditions or metrics.
     """
 
     nums_a = substantive_numeric_values(text_a)
@@ -811,6 +822,18 @@ def numeric_conflict(text_a: str, text_b: str) -> float:
     if not nums_a or not nums_b:
         return 0.0
     if set(nums_a) & set(nums_b):
+        return 0.0
+
+    toks_a = {t.lower() for t in tokenize(text_a)}
+    toks_b = {t.lower() for t in tokenize(text_b)}
+
+    # Require at least one shared metric or 2+ shared substantive content tokens
+    shared_metrics = (toks_a & _COMMON_METRICS) & (toks_b & _COMMON_METRICS)
+    shared_content = (set(content_tokens(text_a)) & set(content_tokens(text_b))) - frozenset({
+        "paper", "model", "method", "result", "propos", "studi", "use", "show"
+    })
+    if not shared_metrics and len(shared_content) < 2:
+        # Without a shared metric or shared entities, differing numbers are from different setups
         return 0.0
 
     entities_a = {e.lower() for e in extract_entities(text_a)}
@@ -826,7 +849,7 @@ def numeric_conflict(text_a: str, text_b: str) -> float:
         for b in nums_b:
             comparisons += 1
             scale = max(abs(a), abs(b), 1e-6)
-            if abs(a - b) / scale > 0.15:
+            if abs(a - b) / scale > 0.20:
                 conflicts += 1
     if comparisons == 0:
         return 0.0

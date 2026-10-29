@@ -253,10 +253,6 @@ def _search_with_filter_detailed(
         buckets: list[list[PaperHit]] = []
         academic_jobs: list[tuple[str, Callable[[], list[PaperHit]]]] = [
             (
-                "ieee",
-                lambda: search_ieee(query, limit, get_json=get_json, settings=settings),
-            ),
-            (
                 "semantic_scholar",
                 lambda: search_semantic_scholar(
                     query, limit, get_json=get_json, settings=settings

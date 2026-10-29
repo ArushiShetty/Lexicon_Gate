@@ -157,6 +157,8 @@ class ConfidenceReport(BaseModel):
     evidence_coverage: float = 0.0
     claims_verified: int = 0
     claims_total: int = 0
+    supported_claims: int = 0
+    partially_supported_claims: int = 0
     unsupported_claims: int = 0
     contradicted_claims: int = 0
     label: str = "low"
@@ -309,6 +311,8 @@ class QueryRequest(BaseModel):
     include_trace: bool = True
     # Optional ChatGPT-style thread id so Ask history stays grouped in Recents.
     chat_id: str | None = None
+    # Answer mode: "research" (grounded in indexed papers) or "general" (parametric knowledge)
+    mode: str = "research"
 
 
 class CompareRequest(BaseModel):

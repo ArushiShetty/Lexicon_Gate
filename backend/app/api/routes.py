@@ -474,6 +474,7 @@ def query(payload: QueryRequest, request: Request) -> PipelineResult:
         payload.query,
         top_k=payload.top_k,
         document_ids=payload.document_ids,
+        mode=payload.mode,
     )
     chat_id = _persist_ask(result, request, chat_id=payload.chat_id)
     if chat_id:

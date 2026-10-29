@@ -76,6 +76,13 @@ def detect_contradictions(
     return pairs[:max_pairs]
 
 
+_GENERIC_PAPER_STEMS = frozenset({
+    "paper", "model", "method", "result", "propos", "studi", "use",
+    "approach", "evalu", "show", "author", "present", "experi", "work",
+    "task", "system", "train", "dataset", "perform", "state", "find",
+})
+
+
 def _best_conflict(
     sentences_a: list[str], sentences_b: list[str]
 ) -> tuple[float, str, str, float, float, float] | None:
@@ -88,15 +95,16 @@ def _best_conflict(
             stems_b = stem_set(sent_b)
             if len(stems_b) < 3:
                 continue
+            substantive_shared = (stems_a & stems_b) - _GENERIC_PAPER_STEMS
             overlap = len(stems_a & stems_b) / min(len(stems_a), len(stems_b))
-            if len(stems_a & stems_b) < 2 or overlap < 0.25:
+            if len(substantive_shared) < 2 or overlap < 0.35:
                 continue
             polarity = polarity_conflict(sent_a, sent_b)
             numeric = numeric_conflict(sent_a, sent_b)
             conflict = max(polarity, numeric)
-            if conflict <= 0:
+            if conflict < 0.55:
                 continue
-            score = clamp(0.4 * min(1.0, overlap / 0.4) + 0.6 * conflict)
+            score = clamp(0.35 * min(1.0, overlap / 0.5) + 0.65 * conflict)
             if best is None or score > best[0]:
                 best = (score, sent_a, sent_b, polarity, numeric, overlap)
     return best

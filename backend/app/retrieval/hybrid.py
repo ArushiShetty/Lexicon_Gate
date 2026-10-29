@@ -20,20 +20,8 @@ logger = logging.getLogger(__name__)
 
 
 def is_bibliography_chunk(text: str, section: str | None = None) -> bool:
-    if section:
-        s_lower = section.lower()
-        if any(w in s_lower for w in ("reference", "bibliography", "works cited", "literature cited")):
-            return True
-    lines = [line.strip() for line in (text or "").split("\n") if line.strip()]
-    if not lines:
-        return False
-    cite_patterns = sum(
-        1 for line in lines
-        if re.match(r"^\[\d+\]\s+", line)
-        or ("pp." in line and re.search(r"\b(19\d\d|20\d\d)\b", line))
-        or "doi:10." in line.lower()
-    )
-    return (cite_patterns / len(lines)) >= 0.4
+    from ..services.ingestion.chunker import is_bibliography_text
+    return is_bibliography_text(text, section)
 
 
 class RetrievalMode(str, Enum):

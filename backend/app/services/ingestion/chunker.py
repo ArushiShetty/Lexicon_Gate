@@ -75,6 +75,35 @@ def split_into_sections(text: str) -> list[tuple[str | None, str]]:
     return sections or [(None, text.strip())]
 
 
+_BIBLIOGRAPHY_HEADING_RE = re.compile(
+    r"^(?:\d+\.?\s*)?(?:references|bibliography|works cited|literature cited|citations)\b",
+    re.IGNORECASE,
+)
+
+
+def is_bibliography_text(text: str, section: str | None = None) -> bool:
+    """True if section heading or chunk content is purely bibliographic reference entries."""
+    if section and _BIBLIOGRAPHY_HEADING_RE.search(section.strip()):
+        return True
+    raw = text or ""
+    # Look for citation density: [1], [2], (2018), pp., vol., In Proceedings of, etc.
+    bracket_cites = len(re.findall(r"\[\d{1,3}\]", raw))
+    doi_cites = len(re.findall(r"\b10\.\d{4,9}/", raw))
+    proc_cites = len(re.findall(r"\b(?:In\s+Proceedings\s+of|IEEE\s+Trans|arXiv:\d{4}\.\d{4,5}|pp\.\s*\d+-\d+)\b", raw, re.I))
+    year_cites = len(re.findall(r"\b(19[7-9]\d|20[0-2]\d)\b", raw))
+    
+    # If the text has 3 or more bracketed citations or multiple DOI/proceeding indicators with years:
+    if bracket_cites >= 3 or (proc_cites >= 2 and year_cites >= 2) or (doi_cites >= 2):
+        # Ensure it's not just a regular paragraph that cites 2 papers
+        # Reference lists have low ratio of common verbs and high ratio of citations
+        words = raw.split()
+        if len(words) > 0 and (bracket_cites * 8 + proc_cites * 10) / len(words) >= 0.12:
+            return True
+        if bracket_cites >= 5:
+            return True
+    return False
+
+
 def chunk_page(
     text: str,
     page: int,
@@ -101,12 +130,15 @@ def chunk_page(
                     continue
             if not piece:
                 continue
+            is_bib = is_bibliography_text(piece, section_title)
+            extra = {"is_bibliography": "true"} if is_bib else {}
             chunks.append(
                 TextChunk(
                     text=piece,
                     page=page,
                     section=section_title,
                     chunk_index=index,
+                    extra=extra,
                 )
             )
             index += 1

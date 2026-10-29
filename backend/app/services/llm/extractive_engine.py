@@ -44,6 +44,7 @@ from ...text_utils import (
     idf_weighted_containment,
     jaccard,
     normalise_query_text,
+    normalise_whitespace,
     off_topic_penalty,
     question_aspects,
     remainder_question_clause,
@@ -728,18 +729,35 @@ def cited_ids(text: str) -> list[int]:
     return ids
 
 
+def sanitize_claim_text(text: str) -> str:
+    """Strip markdown headers, bold field prefixes, bullet points, and formatting artifacts."""
+    if not text:
+        return ""
+    # Remove markdown headings like ### Document Title
+    t = re.sub(r"^#{1,6}\s+[^:\n]+(?::|\s*-+)?\s*", "", text.strip())
+    # Remove bullet markers and field labels like - **Research Problem**: or **Method**:
+    t = re.sub(r"^[\s\-\*•\d\.\)]*\*\*[^*]+?\*\*:\s*", "", t)
+    # Remove any remaining leading bullet points or numbers
+    t = re.sub(r"^[\s\-\*•\d\.\)]+\s*", "", t)
+    # Remove markdown bold/italics
+    t = re.sub(r"[*_]{1,3}", "", t)
+    t = normalise_whitespace(t)
+    return t.strip()
+
+
 def extract_claims(answer: str, max_claims: int = 12) -> list[dict[str, Any]]:
     """Split an answer into atomic, checkable factual claims."""
 
     claims: list[dict[str, Any]] = []
-    for sentence in split_sentences(answer, min_chars=20):
+    for sentence in split_sentences(answer, min_chars=18):
         inline = cited_ids(sentence)
-        clean = strip_citations(sentence)
+        clean = sanitize_claim_text(strip_citations(sentence))
         if not clean or len(content_tokens(clean)) < 3:
             continue
         pieces = _split_conjunctions(clean)
         for piece in pieces:
-            if len(content_tokens(piece)) < 3:
+            piece = sanitize_claim_text(piece)
+            if not piece or len(content_tokens(piece)) < 3:
                 continue
             claims.append({"text": piece, "inline_citations": inline})
             if len(claims) >= max_claims:

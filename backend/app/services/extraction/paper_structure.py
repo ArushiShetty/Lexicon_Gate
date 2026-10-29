@@ -144,10 +144,18 @@ def refresh_document(store, document_id: str) -> PaperStructure | None:
     return extract_and_store(store, document, chunks)
 
 
+def _is_bib(chunk: Chunk) -> bool:
+    if getattr(chunk.metadata, "extra", {}).get("is_bibliography") == "true":
+        return True
+    from ..ingestion.chunker import is_bibliography_text
+    return is_bibliography_text(chunk.text or "", chunk.metadata.section)
+
+
 def _llm_fields(document: Document, chunks: Sequence[Chunk], llm: LLMProvider) -> dict[str, str]:
+    substantive_chunks = [c for c in chunks if not _is_bib(c)] or list(chunks)
     passages = []
     used = 0
-    for chunk in chunks:
+    for chunk in substantive_chunks:
         text = (chunk.text or "").strip()
         if not text:
             continue
@@ -170,7 +178,7 @@ def _llm_fields(document: Document, chunks: Sequence[Chunk], llm: LLMProvider) -
             system=_SYSTEM,
             payload={
                 "title": document.title or document.name,
-                "chunks": [{"chunk_id": c.chunk_id, "text": c.text} for c in chunks],
+                "chunks": [{"chunk_id": c.chunk_id, "text": c.text} for c in substantive_chunks],
             },
         )
     )
@@ -181,8 +189,9 @@ def _llm_fields(document: Document, chunks: Sequence[Chunk], llm: LLMProvider) -
 
 
 def _heuristic_fields(chunks: Sequence[Chunk]) -> dict[str, str]:
+    substantive_chunks = [c for c in chunks if not _is_bib(c)] or list(chunks)
     sentences: list[tuple[str, str]] = []
-    for chunk in chunks:
+    for chunk in substantive_chunks:
         for sentence in split_sentences(chunk.text or "", min_chars=20) or [chunk.text or ""]:
             text = sentence.strip()
             if text:

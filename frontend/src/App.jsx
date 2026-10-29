@@ -878,6 +878,7 @@ function Ask({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [askMode, setAskMode] = useState("research"); // "research" | "general"
   const [selectedDocIds, setSelectedDocIds] = useState([]);
   const [turns, setTurns] = useState(() =>
     Array.isArray(initialTurns) && initialTurns.length
@@ -1053,7 +1054,7 @@ function Ask({
 
   async function ask(next = query) {
     const text = (typeof next === "string" ? next : query || "").trim();
-    if (!text || emptyLibrary || busy || submittingRef.current) return;
+    if (!text || (emptyLibrary && askMode !== "general") || busy || submittingRef.current) return;
     submittingRef.current = true;
     stopListening();
     stopSpeaking();
@@ -1081,6 +1082,7 @@ function Ask({
         include_trace: true,
         document_ids: scopedIds,
         chat_id: chatIdRef.current || activeChatId || undefined,
+        mode: askMode,
       });
       const serverChatId = payload?.config_snapshot?.chat_id;
       if (serverChatId) {
@@ -1255,6 +1257,32 @@ function Ask({
           </details>
         )}
 
+        <div className="ask-mode-bar">
+          <div className="ask-mode-toggle">
+            <button
+              type="button"
+              className={`chip${askMode === "research" ? " active" : ""}`}
+              onClick={() => setAskMode("research")}
+              title="Grounded in your indexed research papers with Evidence Gate verification"
+            >
+              Research Sources Mode
+            </button>
+            <button
+              type="button"
+              className={`chip${askMode === "general" ? " active" : ""}`}
+              onClick={() => setAskMode("general")}
+              title="General academic synthesis (labeled, without citing indexed library)"
+            >
+              General Knowledge Mode
+            </button>
+          </div>
+          {askMode === "general" && (
+            <span className="muted" style={{ fontSize: "11px", color: "var(--apricot-soft)" }}>
+              General mode answers broad questions without citing papers
+            </span>
+          )}
+        </div>
+
         <form
           className="ask-composer-box"
           onSubmit={(e) => {
@@ -1267,15 +1295,17 @@ function Ask({
             rows={1}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={
-              emptyLibrary
-                ? "Add sources first…"
+              emptyLibrary && askMode !== "general"
+                ? "Add sources first (or switch to General Knowledge mode)…"
                 : busy
-                  ? "Searching…"
+                  ? "Processing query…"
                   : listening
                     ? "Listening…"
-                    : "Message Lexicon Gate… or tap the mic"
+                    : askMode === "general"
+                      ? "Ask any question in General Knowledge mode…"
+                      : "Message Lexicon Gate… or tap the mic"
             }
-            disabled={emptyLibrary}
+            disabled={emptyLibrary && askMode !== "general"}
             readOnly={busy}
             autoComplete="off"
             onKeyDown={(e) => {
@@ -1290,7 +1320,7 @@ function Ask({
               type="button"
               className={`ghost ask-mic${listening ? " is-live" : ""}`}
               onClick={toggleMic}
-              disabled={busy || emptyLibrary}
+              disabled={busy || (emptyLibrary && askMode !== "general")}
               aria-pressed={listening}
               aria-label={listening ? "Stop listening" : "Speak your question"}
               title={listening ? "Stop listening" : "Speak your question"}
@@ -1301,7 +1331,7 @@ function Ask({
           <button
             type="submit"
             className={`primary ask-send${busy ? " is-busy" : ""}`}
-            disabled={busy || emptyLibrary || !query.trim()}
+            disabled={busy || (emptyLibrary && askMode !== "general") || !query.trim()}
             aria-label={busy ? "Checking sources" : "Send"}
           >
             {busy ? "…" : "Send"}
@@ -2400,12 +2430,9 @@ function AnswerView({ result, docs, selected, onSelect }) {
   const unused = docs.filter((d) => !usedIds.has(d.document_id) && !usedNames.has(d.name));
   const contradictions = result.contradictions || [];
   const answerText = (result.answer || "").trim();
-  const hasPerPaper = Boolean(result.per_paper_summary && result.per_paper_summary.length > 0);
   const mainAnswerText = useMemo(() => {
-    if (!hasPerPaper) return answerText;
-    const synthIdx = answerText.indexOf("### Cross-Paper Synthesis");
-    return synthIdx !== -1 ? answerText.slice(synthIdx) : "";
-  }, [hasPerPaper, answerText]);
+    return answerText;
+  }, [answerText]);
   const canReadAloud = canSpeak && answerText && !looksLikeDumpedJson(result.answer);
 
   useEffect(() => {
@@ -2659,9 +2686,17 @@ function AnswerView({ result, docs, selected, onSelect }) {
           <summary>
             Claim verification breakdown
             <span className="ask-sources-hint">
-              {result.claims.filter((c) => String(c.status || "").toLowerCase().includes("support")).length}/{result.claims.length} verified
+              {result.claims.filter((c) => String(c.status || "").toLowerCase() === "supported").length}/{result.claims.length} supported
             </span>
           </summary>
+          <div className="claim-counts-bar" style={{ display: "flex", flexWrap: "wrap", gap: "12px", padding: "8px 14px", fontSize: "12px", borderBottom: "1px solid rgba(255,255,255,0.08)", opacity: 0.9 }}>
+            <span><strong style={{ color: "var(--leaf)" }}>{result.claims.filter((c) => String(c.status || "").toLowerCase() === "supported").length}</strong> Supported</span>
+            <span><strong style={{ color: "var(--orange)" }}>{result.claims.filter((c) => String(c.status || "").toLowerCase() === "partially_supported").length}</strong> Partially supported</span>
+            <span><strong style={{ color: "var(--crimson)" }}>{result.claims.filter((c) => String(c.status || "").toLowerCase() === "unsupported").length}</strong> Unsupported</span>
+            {result.claims.filter((c) => String(c.status || "").toLowerCase() === "contradicted").length > 0 && (
+              <span><strong style={{ color: "var(--red)" }}>{result.claims.filter((c) => String(c.status || "").toLowerCase() === "contradicted").length}</strong> Contradicted</span>
+            )}
+          </div>
           <div className="claim-table-wrapper">
             <table className="claim-table">
               <thead>
@@ -2745,7 +2780,7 @@ function AnswerView({ result, docs, selected, onSelect }) {
         <div className="meta">
           <span>Confidence <strong>{pct(conf.confidence)}</strong></span>
           <span>Evidence <strong>{pct(lastGate?.evidence_score ?? conf.evidence_coverage)}</strong></span>
-          <span>Claims <strong>{conf.claims_verified}/{conf.claims_total}</strong></span>
+          <span>Claims <strong>{conf.claims_verified ?? result.claims?.filter((c) => String(c.status || "").toLowerCase() === "supported").length ?? 0}/{conf.claims_total || result.claims?.length || 0} supported</strong></span>
           <span>Checked in <strong>{ms(result.metrics?.latency_ms)}</strong></span>
         </div>
         {conf.caveat && <p className="status">{conf.caveat}</p>}
