@@ -207,7 +207,7 @@ MAX_UPLOAD_FILES = 20
 
 
 @router.post("/documents/upload", response_model=UploadResponse, tags=["documents"])
-async def upload_documents(files: list[UploadFile] = File(...)) -> UploadResponse:
+async def upload_documents(request: Request, files: list[UploadFile] = File(...)) -> UploadResponse:
     if not files:
         raise HTTPException(status_code=400, detail="No files uploaded.")
     if len(files) > MAX_UPLOAD_FILES:
@@ -215,6 +215,9 @@ async def upload_documents(files: list[UploadFile] = File(...)) -> UploadRespons
             status_code=400,
             detail=f"Upload at most {MAX_UPLOAD_FILES} files at once (received {len(files)}).",
         )
+    user = current_user_from_request(request)
+    uid = str((user or {}).get("user_id") or "").strip()
+
     kb = get_knowledge_base()
     documents = []
     warnings: list[str] = []
@@ -228,7 +231,7 @@ async def upload_documents(files: list[UploadFile] = File(...)) -> UploadRespons
             warnings.append(f"{name}: empty file skipped")
             continue
         try:
-            document, chunks = kb.ingest_bytes(name, data, source="upload", rebuild=False)
+            document, chunks = kb.ingest_bytes(name, data, source="upload", rebuild=False, user_id=uid)
         except Exception as exc:
             logger.exception("Failed to ingest %s", name)
             warnings.append(f"{name}: {exc}")
@@ -245,15 +248,18 @@ async def upload_documents(files: list[UploadFile] = File(...)) -> UploadRespons
 
 
 @router.get("/documents", response_model=DocumentListResponse, tags=["documents"])
-def list_documents() -> DocumentListResponse:
+def list_documents(request: Request) -> DocumentListResponse:
     from ..services.ingestion.metadata_extractor import (
         extract_metadata_from_text,
         is_generic_authors,
         is_generic_title,
     )
 
+    user = current_user_from_request(request)
+    uid = str((user or {}).get("user_id") or "").strip()
+
     kb = get_knowledge_base()
-    docs = kb.store.list_documents()
+    docs = kb.store.list_documents(user_id=uid if uid else None)
     updated_any = False
     for doc in docs:
         if is_generic_title(doc.title, doc.name) or is_generic_authors(doc.authors):
@@ -271,12 +277,16 @@ def list_documents() -> DocumentListResponse:
                     kb.update_bibliography(doc.document_id, **patch)
                     updated_any = True
     if updated_any:
-        docs = kb.store.list_documents()
+        docs = kb.store.list_documents(user_id=uid if uid else None)
+
+    # Compute chunks belonging to these user documents
+    user_doc_ids = {d.document_id for d in docs}
+    user_chunks_count = len(kb.store.all_chunks(list(user_doc_ids))) if user_doc_ids else 0
 
     return DocumentListResponse(
         documents=docs,
         total_documents=len(docs),
-        total_chunks=kb.store.chunk_count(),
+        total_chunks=user_chunks_count,
         embedding_provider=kb.embedder.name,
         vector_store=kb.vectors.name,
     )
@@ -335,8 +345,17 @@ def update_document(document_id: str, payload: DocumentBiblioUpdate) -> Document
 
 
 @router.delete("/documents/{document_id}", tags=["documents"])
-def delete_document(document_id: str) -> dict[str, Any]:
+def delete_document(document_id: str, request: Request) -> dict[str, Any]:
+    user = current_user_from_request(request)
+    uid = str((user or {}).get("user_id") or "").strip()
+
     kb = get_knowledge_base()
+    doc = kb.store.get_document(document_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if uid and doc.user_id and doc.user_id != uid:
+        raise HTTPException(status_code=403, detail="You do not have permission to delete this document.")
+
     if not kb.delete_document(document_id):
         raise HTTPException(status_code=404, detail="Document not found")
     return {"deleted": document_id}
@@ -469,11 +488,20 @@ def _load_ask(query_id: str, http_request: Request | None = None) -> PipelineRes
 
 @router.post("/query", response_model=PipelineResult, tags=["query"])
 def query(payload: QueryRequest, request: Request) -> PipelineResult:
+    user = current_user_from_request(request)
+    uid = str((user or {}).get("user_id") or "").strip()
+
+    doc_ids = payload.document_ids
+    if uid and not doc_ids and payload.mode != "general":
+        kb = get_knowledge_base()
+        user_docs = kb.store.list_documents(user_id=uid)
+        doc_ids = [d.document_id for d in user_docs]
+
     runner = _runner(PipelineName.enhanced, threshold=payload.evidence_threshold)
     result = runner.run(
         payload.query,
         top_k=payload.top_k,
-        document_ids=payload.document_ids,
+        document_ids=doc_ids,
         mode=payload.mode,
     )
     chat_id = _persist_ask(result, request, chat_id=payload.chat_id)

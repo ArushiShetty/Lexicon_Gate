@@ -381,20 +381,40 @@ select {
 .orb-orange, .orb-gold { background: radial-gradient(circle at 35% 30%, var(--apricot-glow), var(--apricot) 48%, transparent 70%); top: 18%; right: -12%; bottom: auto; left: auto; }
 
 .sidebar {
-  width: 248px;
+  width: 252px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 22px 16px 18px;
+  padding: 20px 14px 18px;
   border-right: 1px solid var(--glass-border);
   background: var(--glass-sheen), rgba(255, 255, 255, 0.12);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
   overflow-y: auto;
-  min-height: 0;
-  transition: width 0.28s var(--ease), padding 0.28s var(--ease), opacity 0.2s var(--ease), border-color 0.2s var(--ease);
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  height: 100%;
+  max-height: 100vh;
+  max-height: 100dvh;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+  transition: width 0.28s var(--ease), padding 0.28s var(--ease), opacity 0.2s var(--ease), border-color 0.2s var(--ease), transform 0.28s var(--ease);
+}
+.sidebar::-webkit-scrollbar {
+  width: 5px;
+}
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+}
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.45);
 }
 .app.sidebar-collapsed .sidebar {
   width: 0;
@@ -500,11 +520,23 @@ select {
   margin: 0;
   padding: 4px 6px 8px;
   overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   gap: 4px;
   min-height: 0;
-  max-height: min(40vh, 320px);
+  max-height: 240px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+.sidebar-recents-list::-webkit-scrollbar {
+  width: 4px;
+}
+.sidebar-recents-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
 }
 .nav-chats {
   display: flex;
@@ -715,11 +747,11 @@ select {
   flex-direction: column;
   gap: 4px;
   min-width: 0;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   margin-top: 4px;
   padding-top: 0;
   border-top: 0;
-  overflow: hidden;
+  overflow: visible;
   --thumb-x: 0px;
   --thumb-w: 100%;
   --thumb-y: 0px;
@@ -3222,94 +3254,69 @@ button.danger:hover:not(:disabled) {
   .auth-card h1 { font-size: 28px; }
 }
 
-@media (max-width: 640px) {
-  .app { flex-direction: column; }
-  .sidebar {
-    width: 100%;
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (max-width: 768px) {
+  .app {
     flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px 12px;
-    border-right: 0;
-    border-bottom: 1px solid var(--hairline-soft);
+    position: relative;
+    overflow: hidden;
+  }
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    max-width: 84vw;
+    height: 100%;
+    height: 100dvh;
+    z-index: 100;
+    background: rgba(28, 24, 26, 0.96);
+    border-right: 1px solid var(--glass-border);
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.7);
+    transform: translateX(0);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    transition: transform 0.28s var(--ease), opacity 0.22s var(--ease);
+  }
+  .app.sidebar-collapsed .sidebar {
+    transform: translateX(-105%);
+    width: 280px;
+    max-width: 84vw;
+    opacity: 0;
+    pointer-events: none;
+    border-right-color: transparent;
+  }
+  .sidebar-mobile-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.62);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 95;
+    animation: fadeIn 0.2s var(--ease);
+  }
+  .workspace {
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 100%;
+    overflow-x: hidden;
+  }
+  .workspace-bar {
     padding: 10px 16px;
   }
-  .brand { padding: 0; flex-direction: row; align-items: center; gap: 12px; }
-  .brand p { display: none; }
-  .new-chat-btn {
-    width: auto;
-    flex-shrink: 0;
-    padding: 8px 14px;
-    font-size: 13px;
-  }
-  .nav-chats {
-    flex-direction: row;
-    align-items: center;
-    flex-shrink: 0;
-  }
-  .nav-chats-panel {
-    position: absolute;
-    left: 16px;
-    right: 16px;
-    top: 100%;
-    z-index: 5;
-    margin: 4px 0 0;
-    max-height: 40vh;
-    overflow: auto;
-    background: var(--surface-1);
-  }
-  .sidebar-recents-empty { display: none; }
-  .sidebar-recents-list {
-    flex-direction: row;
-    overflow-x: auto;
-    overflow-y: hidden;
-    gap: 6px;
-    max-height: none;
-  }
-  .sidebar nav {
-    position: relative;
-    flex-direction: row;
-    flex: 1 1 100%;
-    overflow-x: auto;
-    margin-top: 0;
-    padding-top: 0;
-    border-top: 0;
-  }
-  .nav-thumb {
-    width: var(--thumb-w);
-    height: 40px;
-    transform: translateX(var(--thumb-x));
-  }
-  .sidebar nav > button,
-  .sidebar nav > .nav-chats > button {
-    width: auto;
-    text-align: center;
-    flex-shrink: 0;
-  }
-  .sidebar-recent-row {
-    flex-shrink: 0;
-    max-width: 210px;
-    background: var(--surface-1);
-    border-radius: var(--radius-md);
-  }
-  .sidebar-recent-item {
-    width: auto;
-    max-width: 170px;
-    background: transparent;
-  }
-  .sidebar-recent-delete {
-    opacity: 1;
-  }
   .sidebar-foot {
-    margin-top: 0;
-    margin-left: auto;
-    flex-direction: row;
-    align-items: center;
-    padding: 0;
+    margin-top: auto;
+    padding-bottom: 28px;
   }
-  .sidebar-foot .ghost { width: auto; }
-  .topbar-user { max-width: 160px; }
-  .workspace-bar { padding: 8px 16px; }
+  .topbar-user {
+    max-width: 220px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

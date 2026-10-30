@@ -109,16 +109,17 @@ def conflict_prompt(
 
 
 INSUFFICIENT_ANSWER = (
-    "I searched your indexed sources. They do not contain enough support to answer "
-    "this question. I won't invent an answer that isn't grounded in those files. "
-    "Try asking about a term that appears in the paper, or add a source that defines it."
+    "**Unable to answer due to insufficient evidence.**\n\n"
+    "The indexed research papers in your library do not contain sufficient evidence to answer this question. "
+    "In Research Mode, answers must be strictly grounded in your indexed sources. "
+    "Please switch to **General Knowledge Mode** for general questions, or upload relevant papers to your library."
 )
 
 UNRELATED_ANSWER = (
-    "I searched your indexed sources. They do not contain enough support for this "
-    "question, so no answer is given. I won't invent an answer that isn't grounded "
-    "in those files. Try asking about a term that appears in the paper, or add a "
-    "source that defines it."
+    "**Unable to answer due to insufficient evidence.**\n\n"
+    "This question is outside the scope of your indexed research papers. "
+    "To answer questions outside your library, please switch to **General Knowledge Mode**, "
+    "or upload relevant documents."
 )
 
 CONFLICT_PREFIX = (

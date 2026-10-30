@@ -54,9 +54,13 @@ class DocumentStore:
                 raw = self._documents_path.read_text(encoding="utf-8").strip()
                 if raw:
                     payload = json.loads(raw)
-                    self._documents = {
-                        item["document_id"]: Document.model_validate(item) for item in payload
-                    }
+                    self._documents = {}
+                    for item in payload:
+                        doc = Document.model_validate(item)
+                        # If document has no user_id (legacy upload), assign to Arushi Shetty
+                        if not doc.user_id:
+                            doc.user_id = "92a44eb862cc44ca99402d440f736800"
+                        self._documents[doc.document_id] = doc
             if self._chunks_path.exists():
                 raw = self._chunks_path.read_text(encoding="utf-8").strip()
                 if raw:
@@ -134,6 +138,7 @@ class DocumentStore:
         year: int | None = None,
         venue: str | None = None,
         doi: str | None = None,
+        user_id: str | None = None,
     ) -> tuple[Document, list[Chunk]]:
         """Clean, chunk and register a document. Returns the doc and its chunks."""
 
@@ -196,6 +201,7 @@ class DocumentStore:
                 year=year,
                 venue=(venue.strip() if isinstance(venue, str) and venue.strip() else None),
                 doi=(doi.strip() if isinstance(doi, str) and doi.strip() else None),
+                user_id=(user_id or "").strip(),
             )
 
             self._documents[doc_id] = document
@@ -254,8 +260,13 @@ class DocumentStore:
             self._persist()
 
     # --------------------------------------------------------------- reading
-    def list_documents(self) -> list[Document]:
-        return sorted(self._documents.values(), key=lambda d: d.created_at)
+    def list_documents(self, user_id: str | None = None) -> list[Document]:
+        docs = sorted(self._documents.values(), key=lambda d: d.created_at)
+        if user_id:
+            uid = str(user_id).strip()
+            # If user_id is provided, only return documents matching this user_id
+            return [d for d in docs if d.user_id == uid]
+        return docs
 
     def get_document(self, document_id: str) -> Document | None:
         return self._documents.get(document_id)

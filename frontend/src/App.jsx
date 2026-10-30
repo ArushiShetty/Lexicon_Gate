@@ -43,24 +43,10 @@ export default function App() {
   const [session, setSession] = useState(undefined);
   const [page, setPage] = useState("ask");
   const [health, setHealth] = useState(null);
-  const [docs, setDocs] = useState(() => {
-    try {
-      const saved = localStorage.getItem("lexicon-cached-docs");
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [docs, setDocs] = useState([]);
 
   const updateDocs = useCallback((newDocs) => {
     setDocs(newDocs || []);
-    try {
-      if (Array.isArray(newDocs)) {
-        localStorage.setItem("lexicon-cached-docs", JSON.stringify(newDocs));
-      }
-    } catch {
-      /* ignore */
-    }
   }, []);
   const [lastResult, setLastResult] = useState(null);
   const [selectedEvidence, setSelectedEvidence] = useState(null);
@@ -74,6 +60,9 @@ export default function App() {
   const [activeRecentId, setActiveRecentId] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     try {
+      if (typeof window !== "undefined" && window.innerWidth <= 768) {
+        return false;
+      }
       return localStorage.getItem("lexicon-sidebar-open") !== "0";
     } catch {
       return true;
@@ -145,13 +134,10 @@ export default function App() {
   }, [session, loadSidebarRecents, updateDocs]);
 
   useEffect(() => {
-    // Immediately fetch library documents so they populate right away
-    api.documents().then((d) => {
-      if (d?.documents) updateDocs(d.documents);
-    }).catch(console.warn);
-
     refresh();
+  }, [session, refresh]);
 
+  useEffect(() => {
     // Send a non-blocking warming ping and keepalive heartbeat every 8 minutes
     // so Render does not spin down into cold sleep while the user has the app open
     api.health().catch(() => {});
@@ -159,7 +145,7 @@ export default function App() {
       api.health().catch(() => {});
     }, 8 * 60 * 1000);
     return () => clearInterval(pingTimer);
-  }, [refresh, updateDocs]);
+  }, []);
 
   function toggleSidebar() {
     setSidebarOpen((open) => {
@@ -196,9 +182,15 @@ export default function App() {
     setFindRestore(null);
     setChatEpoch((n) => n + 1);
     setPage("ask");
+    if (typeof window !== "undefined" && window.innerWidth <= 768) {
+      setSidebarOpen(false);
+    }
   }
 
   async function openSidebarRecent(item) {
+    if (typeof window !== "undefined" && window.innerWidth <= 768) {
+      setSidebarOpen(false);
+    }
     setActiveRecentId(`${item.kind}:${item.id}`);
     if (item.kind === "ask") {
       setAskDraft("");
@@ -490,6 +482,9 @@ export default function App() {
                   /* ignore */
                 }
                 setPage(id);
+                if (typeof window !== "undefined" && window.innerWidth <= 768) {
+                  setSidebarOpen(false);
+                }
               }}
             >
               <span>{label}</span>
@@ -503,6 +498,13 @@ export default function App() {
           </button>
         </div>
       </aside>
+      {sidebarOpen && (
+        <div
+          className="sidebar-mobile-backdrop"
+          onClick={toggleSidebar}
+          aria-hidden="true"
+        />
+      )}
       <div className="workspace">
         <header className="workspace-bar">
           {!sidebarOpen && (

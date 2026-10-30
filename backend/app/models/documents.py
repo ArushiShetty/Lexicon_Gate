@@ -53,6 +53,7 @@ class Document(BaseModel):
     year: int | None = None
     venue: str | None = None
     doi: str | None = None
+    user_id: str = ""
 
 
 class DocumentBiblioUpdate(BaseModel):
