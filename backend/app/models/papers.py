@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-PaperSource = Literal["semantic_scholar", "openalex", "crossref", "arxiv", "tavily"]
+PaperSource = Literal["semantic_scholar", "openalex", "crossref", "arxiv", "tavily", "europe_pmc"]
 PaperSearchFilter = Literal["all", "academic", "research_web", "open_access"]
 ResultKind = Literal["paper", "web"]
 

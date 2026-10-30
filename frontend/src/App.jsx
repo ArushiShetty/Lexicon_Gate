@@ -944,6 +944,7 @@ function Ask({
   );
   const submittingRef = useRef(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
+  const [composerControlsOpen, setComposerControlsOpen] = useState(false);
   const [listening, setListening] = useState(false);
   const [voiceHint, setVoiceHint] = useState("");
   const threadEndRef = useRef(null);
@@ -1249,69 +1250,100 @@ function Ask({
           </div>
         )}
 
-        {!emptyLibrary && (
-          <details
-            className="ask-sources"
-            open={sourcesOpen}
-            onToggle={(e) => setSourcesOpen(e.currentTarget.open)}
+        <div className="ask-composer-toggle-bar">
+          <button
+            type="button"
+            className={`ask-composer-toggle-btn${composerControlsOpen ? " is-open" : ""}`}
+            onClick={() => setComposerControlsOpen((prev) => !prev)}
+            aria-expanded={composerControlsOpen}
+            title={composerControlsOpen ? "Collapse sources and mode options" : "Expand sources and mode options"}
           >
-            <summary>
-              Sources
-              <span className="ask-sources-hint">
-                {selectedDocIds.length
-                  ? `${selectedDocIds.length} selected`
-                  : askScope?.document_ids?.length
-                    ? "Theme scoped"
-                    : "Entire library"}
+            <span>{composerControlsOpen ? "▾" : "▸"}</span>
+            <span>
+              <strong>Sources & Mode:</strong>{" "}
+              {selectedDocIds.length
+                ? `${selectedDocIds.length} selected`
+                : askScope?.document_ids?.length
+                  ? "Theme scoped"
+                  : "All library"}{" "}
+              ·{" "}
+              <span className={askMode === "general" ? "badge-general" : "badge-research"}>
+                {askMode === "general" ? "General Knowledge Mode" : "Research Sources Mode"}
               </span>
-            </summary>
-            <div className="chips write-source-chips ask-source-chips">
-              {pickDocs.map((doc) => {
-                const id = doc.document_id;
-                const active = selectedDocIds.includes(id);
-                const displayTitle = doc.title && doc.title !== doc.name ? doc.title : doc.name;
-                const tooltip = doc.title && doc.title !== doc.name ? `${doc.title} (file: ${doc.name})` : doc.name;
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    className={`chip${active ? " active" : ""}`}
-                    onClick={() => toggleDoc(id)}
-                    title={tooltip}
-                  >
-                    {displayTitle}
-                  </button>
-                );
-              })}
-            </div>
-          </details>
-        )}
-
-        <div className="ask-mode-bar">
-          <div className="ask-mode-toggle">
-            <button
-              type="button"
-              className={`chip${askMode === "research" ? " active" : ""}`}
-              onClick={() => setAskMode("research")}
-              title="Grounded in your indexed research papers with Evidence Gate verification"
-            >
-              Research Sources Mode
-            </button>
-            <button
-              type="button"
-              className={`chip${askMode === "general" ? " active" : ""}`}
-              onClick={() => setAskMode("general")}
-              title="General academic synthesis (labeled, without citing indexed library)"
-            >
-              General Knowledge Mode
-            </button>
-          </div>
-          {askMode === "general" && (
-            <span className="muted" style={{ fontSize: "11px", color: "var(--apricot-soft)" }}>
-              General mode answers broad questions without citing papers
             </span>
-          )}
+            <span className="ask-composer-toggle-action">
+              {composerControlsOpen ? "Hide options ▴" : "Options ▾"}
+            </span>
+          </button>
         </div>
+
+        {composerControlsOpen && (
+          <div className="ask-composer-panel">
+            {!emptyLibrary && (
+              <details
+                className="ask-sources"
+                open={sourcesOpen}
+                onToggle={(e) => setSourcesOpen(e.currentTarget.open)}
+              >
+                <summary>
+                  Sources
+                  <span className="ask-sources-hint">
+                    {selectedDocIds.length
+                      ? `${selectedDocIds.length} selected`
+                      : askScope?.document_ids?.length
+                        ? "Theme scoped"
+                        : "Entire library"}
+                  </span>
+                </summary>
+                <div className="chips write-source-chips ask-source-chips">
+                  {pickDocs.map((doc) => {
+                    const id = doc.document_id;
+                    const active = selectedDocIds.includes(id);
+                    const displayTitle = doc.title && doc.title !== doc.name ? doc.title : doc.name;
+                    const tooltip = doc.title && doc.title !== doc.name ? `${doc.title} (file: ${doc.name})` : doc.name;
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        className={`chip${active ? " active" : ""}`}
+                        onClick={() => toggleDoc(id)}
+                        title={tooltip}
+                      >
+                        {displayTitle}
+                      </button>
+                    );
+                  })}
+                </div>
+              </details>
+            )}
+
+            <div className="ask-mode-bar">
+              <div className="ask-mode-toggle">
+                <button
+                  type="button"
+                  className={`chip${askMode === "research" ? " active" : ""}`}
+                  onClick={() => setAskMode("research")}
+                  title="Grounded in your indexed research papers with Evidence Gate verification"
+                >
+                  Research Sources Mode
+                </button>
+                <button
+                  type="button"
+                  className={`chip${askMode === "general" ? " active" : ""}`}
+                  onClick={() => setAskMode("general")}
+                  title="General academic synthesis (labeled, without citing indexed library)"
+                >
+                  General Knowledge Mode
+                </button>
+              </div>
+              {askMode === "general" && (
+                <span className="muted" style={{ fontSize: "11px", color: "var(--apricot-soft)" }}>
+                  General mode answers broad questions without citing papers
+                </span>
+              )}
+            </div>
+          </div>
+        )}
 
         <form
           className="ask-composer-box"
@@ -1919,12 +1951,32 @@ function Library({ docs, onChange }) {
 
 const STRUCTURE_COLUMNS = ["objective", "method", "dataset", "metric", "result", "limitation"];
 
+function formatPaperDisplay(doc) {
+  const shortName = doc.name ? doc.name.replace(/\.pdf$/i, "") : "paper";
+  let title = (doc.title || doc.name || "").trim();
+  title = title.replace(/\s+/g, " ");
+  const match = title.search(/(?:\s+(?:by|abstract|university|department)\b)/i);
+  let cleanTitle = match > 15 ? title.slice(0, match).trim() : title;
+  if (cleanTitle.length > 68) {
+    cleanTitle = cleanTitle.slice(0, 65).trim() + "…";
+  }
+  const authors = Array.isArray(doc.authors) && doc.authors.length ? doc.authors.slice(0, 3).join(", ") : "";
+  return {
+    shortName,
+    cleanTitle: cleanTitle || shortName,
+    fullTitle: doc.title || doc.name || "Untitled",
+    authors,
+    year: doc.year,
+  };
+}
+
 function ComparePapers({ docs, prefill, onPrefillConsumed }) {
   const [rows, setRows] = useState([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [extractBusy, setExtractBusy] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [expandedDocIds, setExpandedDocIds] = useState([]);
   const [question, setQuestion] = useState("");
   const [result, setResult] = useState(null);
   const [selectedEvidence, setSelectedEvidence] = useState(null);
@@ -1956,6 +2008,18 @@ function ComparePapers({ docs, prefill, onPrefillConsumed }) {
 
   function toggleSource(id) {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
+  function toggleExpand(id) {
+    setExpandedDocIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
+  function selectAll() {
+    setSelectedIds(docs.map((d) => d.document_id));
+  }
+
+  function clearAll() {
+    setSelectedIds([]);
   }
 
   async function refreshAll() {
@@ -2040,30 +2104,109 @@ function ComparePapers({ docs, prefill, onPrefillConsumed }) {
               Select at least two library papers, then ask about similarities, differences, methods, findings, or limitations.
             </p>
             <div className="write-sources">
-              <div className="write-sources-head">
-                <strong>Papers to compare</strong>
-                <span className="status" style={{ margin: 0 }}>
-                  {selectedIds.length ? `${selectedIds.length} selected` : "Select 2+"}
-                </span>
+              <div className="compare-sources-header">
+                <div>
+                  <strong>Papers to compare</strong>{" "}
+                  <span className="status" style={{ margin: 0 }}>
+                    {selectedIds.length ? `(${selectedIds.length} of ${docs.length} selected)` : "(Select at least 2)"}
+                  </span>
+                </div>
+                <div className="compare-bulk-actions">
+                  <button type="button" className="ghost" onClick={selectAll} disabled={selectedIds.length === docs.length}>
+                    Select all
+                  </button>
+                  <button type="button" className="ghost" onClick={clearAll} disabled={!selectedIds.length}>
+                    Clear
+                  </button>
+                </div>
               </div>
-              <div className="chips write-source-chips">
+
+              <div className="compare-paper-list">
                 {docs.map((doc) => {
                   const id = doc.document_id;
                   const active = selectedIds.includes(id);
+                  const expanded = expandedDocIds.includes(id);
+                  const meta = formatPaperDisplay(doc);
                   return (
-                    <button
-                      key={id}
-                      type="button"
-                      className={`chip${active ? " active" : ""}`}
-                      onClick={() => toggleSource(id)}
-                    >
-                      {doc.title || doc.name}
-                    </button>
+                    <div key={id} className={`compare-paper-item${active ? " is-selected" : ""}`}>
+                      <div className="compare-paper-main">
+                        <label className="compare-paper-check" onClick={() => toggleSource(id)}>
+                          <input
+                            type="checkbox"
+                            checked={active}
+                            onChange={() => {}}
+                            aria-label={`Select ${meta.shortName}`}
+                          />
+                          <span className="compare-paper-badge">{meta.shortName}</span>
+                          <span className="compare-paper-title" title={meta.fullTitle}>
+                            {meta.cleanTitle}
+                          </span>
+                          {meta.year && <span className="compare-paper-year">{meta.year}</span>}
+                        </label>
+                        <button
+                          type="button"
+                          className="compare-paper-expand"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleExpand(id);
+                          }}
+                          title={expanded ? "Hide details" : "Expand full title & details"}
+                          aria-expanded={expanded}
+                        >
+                          {expanded ? "Title ▴" : "Title ▾"}
+                        </button>
+                      </div>
+                      {expanded && (
+                        <div className="compare-paper-dropdown">
+                          <div className="compare-paper-detail-row">
+                            <strong>Full Title:</strong>
+                            <p className="compare-paper-full-title">{meta.fullTitle}</p>
+                          </div>
+                          {meta.authors && (
+                            <div className="compare-paper-detail-row">
+                              <strong>Authors:</strong> <span>{meta.authors}</span>
+                            </div>
+                          )}
+                          <div className="compare-paper-detail-row">
+                            <strong>File:</strong> <code>{doc.name}</code>
+                            {doc.year ? <span> · Year: {doc.year}</span> : null}
+                            {doc.chunks ? <span> · {doc.chunks} passages</span> : null}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
+
+              {selectedIds.length > 0 && (
+                <div className="compare-selected-summary">
+                  <span className="status" style={{ margin: 0, fontWeight: 600 }}>Active in comparison:</span>
+                  <div className="chips">
+                    {selectedIds.map((id) => {
+                      const d = docs.find((x) => x.document_id === id);
+                      if (!d) return null;
+                      const m = formatPaperDisplay(d);
+                      return (
+                        <span key={id} className="chip active">
+                          {m.shortName}
+                          <button
+                            type="button"
+                            className="theme-chip-clear"
+                            onClick={() => toggleSource(id)}
+                            aria-label={`Remove ${m.shortName}`}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {selectedIds.length > 0 && selectedIds.length < 2 && (
-                <p className="status">Select at least two papers to run a comparison question.</p>
+                <p className="status" style={{ marginTop: 8 }}>Select at least two papers to run a comparison question.</p>
               )}
             </div>
             <label>
@@ -2312,6 +2455,12 @@ function CompareResultView({ result, selectedDocIds, docs, selected, onSelect })
 }
 
 function verificationBadge(result) {
+  const isGeneral =
+    result.mode === "general" ||
+    (typeof result.answer === "string" && result.answer.includes("General Knowledge Mode"));
+  if (isGeneral) {
+    return { label: "General Knowledge (Online 3× Verified)", tone: "good" };
+  }
   if (result.outcome === "premise_contradicted" || result.status === "PREMISE_CONTRADICTED") {
     return { label: "Premise contradicted", tone: "warn" };
   }
@@ -2578,6 +2727,10 @@ function AnswerView({ result, docs, selected, onSelect }) {
     speakHandleRef.current = handle;
   }
 
+  const isGeneral =
+    result.mode === "general" ||
+    (typeof result.answer === "string" && result.answer.includes("General Knowledge Mode"));
+
   return (
     <div className="chat-answer">
       {(result.status === "PREMISE_CONTRADICTED" || result.outcome === "premise_contradicted") && (
@@ -2588,10 +2741,11 @@ function AnswerView({ result, docs, selected, onSelect }) {
       {((result.status === "CONFLICTING_EVIDENCE" || result.outcome === "conflicting") && !hasPerPaper) && (
         <p className="status chat-status-note">Sources disagree. Both views stay visible below.</p>
       )}
-      {result.unrelated_to_sources && (
+      {!isGeneral && result.unrelated_to_sources && (
         <p className="status chat-status-note">This question is not covered by your files.</p>
       )}
-      {!result.unrelated_to_sources &&
+      {!isGeneral &&
+        !result.unrelated_to_sources &&
         (result.status === "INSUFFICIENT_EVIDENCE" || looksLikeDumpedJson(result.answer)) && (
         <p className="status chat-status-note">
           The indexed files do not contain enough support for a reliable answer.
@@ -2602,7 +2756,8 @@ function AnswerView({ result, docs, selected, onSelect }) {
           <AnswerText text={mainAnswerText} onCite={selectCite} />
         )}
       </div>
-      {(result.status === "INSUFFICIENT_EVIDENCE" || result.unrelated_to_sources) &&
+      {!isGeneral &&
+        (result.status === "INSUFFICIENT_EVIDENCE" || result.unrelated_to_sources) &&
         result.mismatch_detail && (
         <p className="status chat-status-note">{result.mismatch_detail}</p>
       )}

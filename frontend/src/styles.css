@@ -33,8 +33,9 @@
   --hairline: var(--glass-border);
   --hairline-soft: rgba(255, 255, 255, 0.2);
   --ink: #ffffff;
-  --ink-muted: rgba(255, 255, 255, 0.68);
-  --accent: var(--apricot);
+  --ink-muted: rgba(245, 238, 232, 0.88);
+  --taupe-soft: #988f89;
+  --taupe-light: #baada5;
   --accent-strong: var(--apricot-deep);
   --on-primary: #ffffff;
   --crimson: var(--apricot-deep);
@@ -1419,7 +1420,7 @@ button.linkish:focus-visible {
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 24px var(--space-page) 64px;
+  padding: 24px var(--space-page) 180px;
   scroll-behavior: smooth;
 }
 .ask-empty {
@@ -4353,4 +4354,239 @@ button.danger:hover:not(:disabled) {
 .claim-table-text {
   max-width: 380px;
   line-height: 1.45;
+}
+
+/* ==============================================================
+   Markdown Alerts (General Knowledge Mode warning banner)
+============================================================== */
+.markdown-alert {
+  display: flex;
+  gap: 14px;
+  padding: 14px 18px;
+  border-radius: var(--radius-md);
+  margin: 16px 0 20px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.markdown-alert-warning {
+  background: rgba(255, 122, 61, 0.16);
+  border: 1px solid rgba(255, 122, 61, 0.65);
+  box-shadow: 0 4px 24px rgba(229, 90, 34, 0.22);
+  color: #fff6f0;
+}
+.markdown-alert-note {
+  background: rgba(90, 160, 240, 0.14);
+  border: 1px solid rgba(90, 160, 240, 0.5);
+  box-shadow: 0 4px 20px rgba(50, 120, 220, 0.15);
+  color: #f0f7ff;
+}
+.markdown-alert-icon {
+  font-size: 22px;
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+.markdown-alert-body {
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.markdown-alert-body p {
+  margin: 0 0 8px;
+}
+.markdown-alert-body p:last-child {
+  margin-bottom: 0;
+}
+
+/* ==============================================================
+   Ask View: Collapsible Downside Bar Controls
+============================================================== */
+.ask-composer-toggle-bar {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  margin-bottom: 4px;
+  padding: 0 4px;
+}
+.ask-composer-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(28, 22, 26, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--radius-pill);
+  padding: 5px 14px;
+  color: var(--ink-muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s var(--ease);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  user-select: none;
+}
+.ask-composer-toggle-btn:hover {
+  background: rgba(45, 36, 42, 0.75);
+  border-color: rgba(255, 122, 61, 0.45);
+  color: var(--ink);
+}
+.ask-composer-toggle-btn.is-open {
+  background: rgba(255, 122, 61, 0.2);
+  border-color: rgba(255, 122, 61, 0.6);
+  color: #ffffff;
+}
+.ask-composer-toggle-btn .badge-general {
+  color: var(--apricot-glow);
+  font-weight: 600;
+}
+.ask-composer-toggle-btn .badge-research {
+  color: #8be4bc;
+  font-weight: 600;
+}
+.ask-composer-toggle-action {
+  font-size: 11px;
+  opacity: 0.85;
+  margin-left: 6px;
+}
+.ask-composer-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: fadeIn 0.2s var(--ease);
+}
+
+/* ==============================================================
+   Compare Papers: Clean Unclustered List with Dropdown Accordion
+============================================================== */
+.compare-sources-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.compare-bulk-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.compare-bulk-actions button {
+  font-size: 12px !important;
+  padding: 4px 12px !important;
+  border-radius: var(--radius-pill) !important;
+}
+.compare-paper-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 12px;
+}
+.compare-paper-item {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--radius-lg);
+  padding: 10px 14px;
+  transition: all 0.22s var(--ease);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.compare-paper-item:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.32);
+}
+.compare-paper-item.is-selected {
+  background: rgba(255, 122, 61, 0.18);
+  border-color: rgba(255, 122, 61, 0.7);
+  box-shadow: 0 4px 18px rgba(229, 90, 34, 0.18);
+}
+.compare-paper-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.compare-paper-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  flex: 1;
+  min-width: 0;
+  user-select: none;
+}
+.compare-paper-check input[type="checkbox"] {
+  cursor: pointer;
+  accent-color: var(--apricot);
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+}
+.compare-paper-badge {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.14);
+  padding: 2px 7px;
+  border-radius: 6px;
+  color: var(--ink);
+  flex-shrink: 0;
+}
+.compare-paper-item.is-selected .compare-paper-badge {
+  background: var(--apricot);
+  color: #ffffff;
+}
+.compare-paper-title {
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+.compare-paper-year {
+  font-size: 11px;
+  color: var(--ink-muted);
+  flex-shrink: 0;
+}
+.compare-paper-expand {
+  font-size: 11.5px !important;
+  padding: 3px 9px !important;
+  border-radius: var(--radius-pill) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: var(--ink-muted) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.compare-paper-expand:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: var(--ink) !important;
+}
+.compare-paper-dropdown {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 12px;
+  color: var(--ink-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  animation: fadeIn 0.18s var(--ease);
+}
+.compare-paper-detail-row {
+  line-height: 1.45;
+}
+.compare-paper-full-title {
+  margin: 3px 0 0;
+  color: var(--ink);
+  font-weight: 500;
+  line-height: 1.4;
+  word-break: break-word;
+}
+.compare-selected-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  flex-wrap: wrap;
 }

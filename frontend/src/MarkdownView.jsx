@@ -165,18 +165,41 @@ export function MarkdownView({ content, onCite, className = "markdown-body" }) {
         continue;
       }
 
-      // Blockquote: > text
-      if (/^>\s+/.test(line)) {
+      // Blockquote / Alert callouts: > [!WARNING] or > text
+      if (/^>\s*/.test(line)) {
         const quoteLines = [];
-        while (i < lines.length && /^>\s+/.test(lines[i])) {
-          quoteLines.push(lines[i].replace(/^>\s+/, ""));
+        while (i < lines.length && /^>\s*/.test(lines[i])) {
+          quoteLines.push(lines[i].replace(/^>\s?/, ""));
           i++;
         }
-        result.push(
-          <blockquote key={`quote-${blockId++}`} className="markdown-quote">
-            <p>{parseInline(quoteLines.join(" "), onCite)}</p>
-          </blockquote>
-        );
+        let alertType = null;
+        if (/^\[!(WARNING|CAUTION|ALERT)\]/i.test(quoteLines[0] || "")) {
+          alertType = "warning";
+          quoteLines.shift();
+        } else if (/^\[!(NOTE|INFO|TIP)\]/i.test(quoteLines[0] || "")) {
+          alertType = "note";
+          quoteLines.shift();
+        }
+
+        if (alertType) {
+          const alertContent = quoteLines.join("\n");
+          result.push(
+            <div key={`alert-${blockId++}`} className={`markdown-alert markdown-alert-${alertType}`}>
+              <div className="markdown-alert-icon">{alertType === "warning" ? "⚠️" : "ℹ️"}</div>
+              <div className="markdown-alert-body">
+                {alertContent.split("\n\n").map((para, pIdx) => (
+                  <p key={pIdx}>{parseInline(para.replace(/\n/g, " "), onCite)}</p>
+                ))}
+              </div>
+            </div>
+          );
+        } else {
+          result.push(
+            <blockquote key={`quote-${blockId++}`} className="markdown-quote">
+              <p>{parseInline(quoteLines.join(" "), onCite)}</p>
+            </blockquote>
+          );
+        }
         continue;
       }
 
