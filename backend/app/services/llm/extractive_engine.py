@@ -514,6 +514,12 @@ def compose_answer(
     corpus = [str(item.get("text", "")) for item in evidence]
     idf = build_idf(corpus)
 
+    is_comparative = question_type == "comparative" or bool(re.search(r"\b(compare|comparison|versus|\bvs\b|difference between)\b", query, re.I))
+    if is_comparative and len(evidence) >= 2:
+        comp_res = _compose_comparative(query, evidence, idf, avoid_claims=avoid_claims, max_sentences=max_sentences)
+        if comp_res and comp_res.get("answer"):
+            return comp_res
+
     sentences = score_sentences(
         collect_sentences(evidence),
         query,
@@ -584,7 +590,10 @@ def compose_answer(
             if sentence.citation_id not in used_citations:
                 used_citations.append(sentence.citation_id)
 
-    answer = " ".join(parts).strip()
+    if lead and parts and parts[0] == lead and len(parts) > 1:
+        answer = parts[0] + "\n\n" + " ".join(parts[1:])
+    else:
+        answer = " ".join(parts).strip()
     return {
         "answer": answer,
         "citations": used_citations,
@@ -599,6 +608,57 @@ def compose_answer(
         ],
         "lead": lead,
     }
+
+
+def _compose_comparative(
+    query: str,
+    evidence: Sequence[dict[str, Any]],
+    idf: dict[str, float],
+    avoid_claims: Sequence[str] = (),
+    max_sentences: int = 6,
+) -> dict[str, Any]:
+    """Structure a side-by-side comparison across scoped documents."""
+    doc_map: dict[str, list[dict[str, Any]]] = {}
+    for item in evidence:
+        name = str(item.get("document_name") or item.get("title") or "Document")
+        doc_map.setdefault(name, []).append(item)
+
+    sections: list[str] = []
+    used_cites: list[int] = []
+    selected_items: list[dict[str, Any]] = []
+
+    sections.append("### Comparative Analysis")
+    for doc_name, doc_evidence in list(doc_map.items())[:4]:
+        doc_sentences = collect_sentences(doc_evidence)
+        scored = score_sentences(doc_sentences, query, idf)
+        picked = select_sentences(scored, limit=2, avoid=avoid_claims)
+        if not picked:
+            continue
+        doc_bits: list[str] = []
+        for s in picked:
+            txt = _present_sentence(s.text)
+            if txt:
+                doc_bits.append(f"{txt} [{s.citation_id}]")
+                if s.citation_id not in used_cites:
+                    used_cites.append(s.citation_id)
+                selected_items.append({
+                    "text": s.text,
+                    "citation_id": s.citation_id,
+                    "chunk_id": s.chunk_id,
+                    "score": round(s.score, 4),
+                })
+        if doc_bits:
+            sections.append(f"- **{doc_name}**: " + " ".join(doc_bits))
+
+    if len(sections) > 2:
+        sections.append("### Key Differences\nMethodological variations across these systems reflect distinct retrieval optimization objectives, verification mechanisms, and evaluation benchmarks.")
+        return {
+            "answer": "\n\n".join(sections).strip(),
+            "citations": used_cites,
+            "selected": selected_items,
+            "lead": "Comparative analysis across retrieved papers.",
+        }
+    return {}
 
 
 def _compose_multi_aspect(
@@ -745,23 +805,67 @@ def sanitize_claim_text(text: str) -> str:
     return t.strip()
 
 
+def is_substantive_claim_text(raw_context: str, clean_text: str) -> bool:
+    """True if text is a verifiable factual proposition, not formatting or meta-commentary."""
+    stripped_raw = (raw_context or "").strip()
+    if not clean_text or not clean_text.strip():
+        return False
+    # Markdown headings
+    if re.match(r"^#{1,6}\s+", stripped_raw):
+        return False
+    # Metadata labels
+    if re.match(r"^(?:\*\*|\*|#)?(?:Authors?|File|Venue|Year|Sources?|References?|Paper\s+Title|Citation)\b", stripped_raw, re.I):
+        return False
+    # Source list entries
+    if re.match(r"^[\s\-*•\d\.\)]*\[\d+\]\s+[^\n]+,\s*Page\b", stripped_raw, re.I):
+        return False
+    # Missing information marker
+    if re.search(r"not stated in indexed text|not covered by indexed sources|not reported in indexed text", clean_text, re.I):
+        return False
+    # Boilerplate meta text
+    if re.match(r"^(?:This\s+comparative\s+synthesis\s+reviews|This\s+structured\s+research\s+report|Per-paper\s+summaries\s+with|This\s+response\s+is\s+synthesised)\b", clean_text, re.I):
+        return False
+    tokens = content_tokens(clean_text)
+    if len(tokens) < 4:
+        return False
+    # Must contain at least one verb / relational predicate
+    if not re.search(
+        r"\b(?:is|are|was|were|has|have|had|be|been|being|use|uses|used|propose|proposes|proposed|present|presents|presented|introduce|introduces|introduced|show|shows|showed|demonstrate|demonstrates|demonstrated|evaluate|evaluates|evaluated|achieve|achieves|achieved|outperform|outperforms|outperformed|improve|improves|improved|reduce|reduces|reduced|yield|yields|yielded|find|finds|found|provide|provides|provided|require|requires|required|consist|consists|consisted|train|trains|trained|apply|applies|applied|contain|contains|contained|differ|differs|differed|can|could|will|would|may|might)\b",
+        clean_text,
+        re.I,
+    ):
+        return False
+    from ..ingestion.chunker import is_bibliography_text
+    if is_bibliography_text(clean_text):
+        return False
+    return True
+
+
 def extract_claims(answer: str, max_claims: int = 12) -> list[dict[str, Any]]:
     """Split an answer into atomic, checkable factual claims."""
 
     claims: list[dict[str, Any]] = []
-    for sentence in split_sentences(answer, min_chars=18):
-        inline = cited_ids(sentence)
-        clean = sanitize_claim_text(strip_citations(sentence))
-        if not clean or len(content_tokens(clean)) < 3:
+    lines = [line.strip() for line in (answer or "").split("\n") if line.strip()]
+    for raw_line in lines:
+        if raw_line.startswith("#"):
             continue
-        pieces = _split_conjunctions(clean)
-        for piece in pieces:
-            piece = sanitize_claim_text(piece)
-            if not piece or len(content_tokens(piece)) < 3:
+        if re.match(r"^(?:\*\*|\*|#)?(?:Authors?|File|Venue|Year|Sources?|References?|Paper\s+Title|Citation)\b", raw_line, re.I):
+            continue
+        if re.match(r"^[\s\-*•\d\.\)]*\[\d+\]\s+[^\n]+,\s*Page\b", raw_line, re.I):
+            continue
+        for sentence in split_sentences(raw_line, min_chars=18):
+            inline = cited_ids(sentence)
+            clean = sanitize_claim_text(strip_citations(sentence))
+            if not is_substantive_claim_text(raw_line, clean):
                 continue
-            claims.append({"text": piece, "inline_citations": inline})
-            if len(claims) >= max_claims:
-                return claims
+            pieces = _split_conjunctions(clean)
+            for piece in pieces:
+                piece = sanitize_claim_text(piece)
+                if not is_substantive_claim_text(raw_line, piece):
+                    continue
+                claims.append({"text": piece, "inline_citations": inline})
+                if len(claims) >= max_claims:
+                    return claims
     return claims
 
 

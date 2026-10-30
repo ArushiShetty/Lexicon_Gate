@@ -945,6 +945,7 @@ function Ask({
   const submittingRef = useRef(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [composerControlsOpen, setComposerControlsOpen] = useState(false);
+  const [composerCollapsed, setComposerCollapsed] = useState(false);
   const [listening, setListening] = useState(false);
   const [voiceHint, setVoiceHint] = useState("");
   const threadEndRef = useRef(null);
@@ -1250,32 +1251,49 @@ function Ask({
           </div>
         )}
 
-        <div className="ask-composer-toggle-bar">
+        <div className="ask-composer-header-row">
+          <div className="ask-composer-toggle-bar">
+            <button
+              type="button"
+              className={`ask-composer-toggle-btn${composerControlsOpen ? " is-open" : ""}`}
+              onClick={() => {
+                if (composerCollapsed) setComposerCollapsed(false);
+                setComposerControlsOpen((prev) => !prev);
+              }}
+              aria-expanded={composerControlsOpen}
+              title={composerControlsOpen ? "Collapse sources and mode options" : "Expand sources and mode options"}
+            >
+              <span>{composerControlsOpen ? "▾" : "▸"}</span>
+              <span>
+                <strong>Sources & Mode:</strong>{" "}
+                {selectedDocIds.length
+                  ? `${selectedDocIds.length} selected`
+                  : askScope?.document_ids?.length
+                    ? "Theme scoped"
+                    : "All library"}{" "}
+                ·{" "}
+                <span className={askMode === "general" ? "badge-general" : "badge-research"}>
+                  {askMode === "general" ? "General Knowledge Mode" : "Research Sources Mode"}
+                </span>
+              </span>
+              <span className="ask-composer-toggle-action">
+                {composerControlsOpen ? "Hide options ▴" : "Options ▾"}
+              </span>
+            </button>
+          </div>
           <button
             type="button"
-            className={`ask-composer-toggle-btn${composerControlsOpen ? " is-open" : ""}`}
-            onClick={() => setComposerControlsOpen((prev) => !prev)}
-            aria-expanded={composerControlsOpen}
-            title={composerControlsOpen ? "Collapse sources and mode options" : "Expand sources and mode options"}
+            className="composer-collapse-toggle"
+            onClick={() => setComposerCollapsed((prev) => !prev)}
+            title={composerCollapsed ? "Expand composer input" : "Collapse input to view full chat"}
+            aria-label={composerCollapsed ? "Expand composer input" : "Collapse input"}
           >
-            <span>{composerControlsOpen ? "▾" : "▸"}</span>
-            <span>
-              <strong>Sources & Mode:</strong>{" "}
-              {selectedDocIds.length
-                ? `${selectedDocIds.length} selected`
-                : askScope?.document_ids?.length
-                  ? "Theme scoped"
-                  : "All library"}{" "}
-              ·{" "}
-              <span className={askMode === "general" ? "badge-general" : "badge-research"}>
-                {askMode === "general" ? "General Knowledge Mode" : "Research Sources Mode"}
-              </span>
-            </span>
-            <span className="ask-composer-toggle-action">
-              {composerControlsOpen ? "Hide options ▴" : "Options ▾"}
-            </span>
+            {composerCollapsed ? "Expand Input ▴" : "Collapse ▾"}
           </button>
         </div>
+
+        {!composerCollapsed && (
+          <>
 
         {composerControlsOpen && (
           <div className="ask-composer-panel">
@@ -1405,6 +1423,8 @@ function Ask({
           <p className="ask-voice-hint muted">
             Voice input needs Chrome or Edge. You can still type questions.
           </p>
+        )}
+          </>
         )}
       </div>
     </div>
@@ -1714,8 +1734,8 @@ function formatPaperDisplay(doc) {
   title = title.replace(/\s+/g, " ");
   const match = title.search(/(?:\s+(?:by|abstract|university|department)\b)/i);
   let cleanTitle = match > 15 ? title.slice(0, match).trim() : title;
-  if (cleanTitle.length > 68) {
-    cleanTitle = cleanTitle.slice(0, 65).trim() + "…";
+  if (cleanTitle.length > 50) {
+    cleanTitle = cleanTitle.slice(0, 47).trim() + "…";
   }
   const authors = Array.isArray(doc.authors) && doc.authors.length ? doc.authors.slice(0, 3).join(", ") : "";
   return {
@@ -1943,7 +1963,7 @@ function Library({ docs, onChange }) {
               {docs.map((doc) => {
                 const meta = formatPaperDisplay(doc);
                 const isExpanded = expandedDocIds.includes(doc.document_id);
-                const hasLongTitle = (doc.title || "").length > 68 || doc.title !== meta.cleanTitle;
+                const hasLongTitle = (doc.title || "").length > 50 || doc.title !== meta.cleanTitle;
                 return (
                   <tr key={doc.document_id}>
                     <td>
@@ -2780,11 +2800,12 @@ function AnswerView({ result, docs, selected, onSelect }) {
       {((result.status === "CONFLICTING_EVIDENCE" || result.outcome === "conflicting") && !hasPerPaper) && (
         <p className="status chat-status-note">Sources disagree. Both views stay visible below.</p>
       )}
-      {!isGeneral && result.unrelated_to_sources && (
+      {!isGeneral && result.unrelated_to_sources && !mainAnswerText && (
         <p className="status chat-status-note">This question is not covered by your files.</p>
       )}
       {!isGeneral &&
         !result.unrelated_to_sources &&
+        !mainAnswerText &&
         (result.status === "INSUFFICIENT_EVIDENCE" || looksLikeDumpedJson(result.answer)) && (
         <p className="status chat-status-note">
           The indexed files do not contain enough support for a reliable answer.
@@ -2796,6 +2817,7 @@ function AnswerView({ result, docs, selected, onSelect }) {
         )}
       </div>
       {!isGeneral &&
+        !mainAnswerText &&
         (result.status === "INSUFFICIENT_EVIDENCE" || result.unrelated_to_sources) &&
         result.mismatch_detail && (
         <p className="status chat-status-note">{result.mismatch_detail}</p>

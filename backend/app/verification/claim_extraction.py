@@ -67,7 +67,7 @@ def extract_claims(answer: str, llm: LLMProvider, max_claims: int = 12) -> list[
             text = str(item.get("text", "")).strip()
             inline = [int(x) for x in item.get("inline_citations", []) if str(x).isdigit()]
         text = engine.sanitize_claim_text(text)
-        if not text or len(content_tokens(text)) < 3:
+        if not text or not engine.is_substantive_claim_text(text, text):
             continue
         key = " ".join(content_tokens(text))
         if key in seen:

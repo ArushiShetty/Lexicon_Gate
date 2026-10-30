@@ -81,12 +81,13 @@ class HybridRetriever:
         bm25_scores = {hit.chunk_id: float(hit.score) for hit in lexical_hits}
         matched_terms = {hit.chunk_id: hit.matched_terms for hit in lexical_hits}
 
+        candidate_limit = max(top_k * 4, 30)
         if self.mode is RetrievalMode.dense:
-            ordered = [(hit.chunk_id, float(hit.score)) for hit in dense_hits][:top_k]
+            ordered = [(hit.chunk_id, float(hit.score)) for hit in dense_hits][:candidate_limit]
             fused = {cid: score for cid, score in ordered}
             ranking = [cid for cid, _ in ordered]
         elif self.mode is RetrievalMode.bm25:
-            ordered = [(hit.chunk_id, float(hit.score)) for hit in lexical_hits][:top_k]
+            ordered = [(hit.chunk_id, float(hit.score)) for hit in lexical_hits][:candidate_limit]
             fused = {cid: score for cid, score in ordered}
             ranking = [cid for cid, _ in ordered]
         else:
@@ -110,13 +111,13 @@ class HybridRetriever:
                 else weighted_score_fusion
             )
             kwargs = {"k": self.rrf_k} if self.fusion is FusionStrategy.rrf else {}
-            results = fuse(lists, top_k=top_k, **kwargs)  # type: ignore[arg-type]
+            results = fuse(lists, top_k=candidate_limit, **kwargs)  # type: ignore[arg-type]
             fused = {r.chunk_id: r.fused_score for r in results}
             ranking = [r.chunk_id for r in results]
 
         items: list[EvidenceItem] = []
-        bib_query = any(w in query.lower() for w in ("reference", "bibliography", "citation", "cited by"))
-        for rank, chunk_id in enumerate(ranking, start=1):
+        bib_query = any(w in query.lower() for w in ("reference", "bibliography", "citation", "cited by", "works cited"))
+        for chunk_id in ranking:
             chunk = self.kb.get_chunk(chunk_id)
             if chunk is None:
                 continue
@@ -124,6 +125,7 @@ class HybridRetriever:
             if not bib_query and is_bibliography_chunk(chunk.text, chunk.metadata.section):
                 continue
             document = self.kb.store.get_document(chunk.metadata.document_id)
+            rank = len(items) + 1
             items.append(
                 EvidenceItem(
                     citation_id=0,
@@ -138,14 +140,17 @@ class HybridRetriever:
                     fused_score=fused.get(chunk_id, 0.0),
                     rank=rank,
                     source_quality=float(chunk.metadata.source_quality),
-                    supporting_spans=list(matched_terms.get(chunk_id, [])[:8]),
-                    title=document.title if document else chunk.metadata.document_name,
-                    authors=list(document.authors) if document else [],
+                    matched_lexical_terms=matched_terms.get(chunk_id, []),
+                    document_source=document.source if document else "upload",
+                    title=document.title if document and document.title else (chunk.metadata.document_name),
+                    authors=document.authors if document and document.authors else [],
                     year=document.year if document else None,
                     venue=document.venue if document else None,
                     doi=document.doi if document else None,
                 )
             )
+            if len(items) >= top_k:
+                break
         return items
 
     def describe(self) -> dict[str, object]:
