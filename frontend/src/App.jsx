@@ -1708,6 +1708,25 @@ function FindPapers({ onImported, onRecentsChange, restore }) {
   );
 }
 
+function formatPaperDisplay(doc) {
+  const shortName = doc.name ? doc.name.replace(/\.pdf$/i, "") : "paper";
+  let title = (doc.title || doc.name || "").trim();
+  title = title.replace(/\s+/g, " ");
+  const match = title.search(/(?:\s+(?:by|abstract|university|department)\b)/i);
+  let cleanTitle = match > 15 ? title.slice(0, match).trim() : title;
+  if (cleanTitle.length > 68) {
+    cleanTitle = cleanTitle.slice(0, 65).trim() + "…";
+  }
+  const authors = Array.isArray(doc.authors) && doc.authors.length ? doc.authors.slice(0, 3).join(", ") : "";
+  return {
+    shortName,
+    cleanTitle: cleanTitle || shortName,
+    fullTitle: doc.title || doc.name || "Untitled",
+    authors,
+    year: doc.year,
+  };
+}
+
 function Library({ docs, onChange }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -1717,8 +1736,13 @@ function Library({ docs, onChange }) {
   const [editTitle, setEditTitle] = useState("");
   const [editAuthors, setEditAuthors] = useState("");
   const [editYear, setEditYear] = useState("");
+  const [expandedDocIds, setExpandedDocIds] = useState([]);
   const fileRef = useRef(null);
   const MAX_UPLOAD_FILES = 20;
+
+  function toggleExpand(id) {
+    setExpandedDocIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
 
   function startEdit(doc) {
     setEditingDoc(doc);
@@ -1910,37 +1934,67 @@ function Library({ docs, onChange }) {
           <table>
             <thead>
               <tr>
-                <th>Citation</th>
+                <th>Paper / Citation</th>
                 <th className="num">Passages</th>
                 <th />
               </tr>
             </thead>
             <tbody>
-              {docs.map((doc) => (
-                <tr key={doc.document_id}>
-                  <td>
-                    <div>
-                      <strong>{doc.title || doc.name}</strong>
-                      <div className="status" style={{ margin: 0 }}>
-                        {(doc.authors || []).join(", ") || "Unknown author"}
-                        {doc.year ? ` · ${doc.year}` : ""}
-                        {doc.venue ? ` · ${doc.venue}` : ""}
-                        <br />
-                        {doc.name}
+              {docs.map((doc) => {
+                const meta = formatPaperDisplay(doc);
+                const isExpanded = expandedDocIds.includes(doc.document_id);
+                const hasLongTitle = (doc.title || "").length > 68 || doc.title !== meta.cleanTitle;
+                return (
+                  <tr key={doc.document_id}>
+                    <td>
+                      <div className="lib-paper-cell">
+                        <div className="lib-paper-title-row">
+                          <span className="compare-paper-badge">{meta.shortName}</span>
+                          <strong className="lib-paper-title" title={meta.fullTitle}>
+                            {meta.cleanTitle}
+                          </strong>
+                          {hasLongTitle && (
+                            <button
+                              type="button"
+                              className="compare-paper-expand"
+                              onClick={() => toggleExpand(doc.document_id)}
+                              title={isExpanded ? "Collapse full title" : "Expand full title & details"}
+                              aria-expanded={isExpanded}
+                            >
+                              {isExpanded ? "Title ▴" : "Title ▾"}
+                            </button>
+                          )}
+                        </div>
+
+                        {isExpanded && (
+                          <div className="compare-paper-dropdown lib-dropdown">
+                            <div className="compare-paper-detail-row">
+                              <strong>Full Extracted Title:</strong>
+                              <p className="compare-paper-full-title">{meta.fullTitle}</p>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="status lib-paper-meta" style={{ margin: "4px 0 0" }}>
+                          {meta.authors ? <span>{meta.authors}</span> : <span>Unknown author</span>}
+                          {doc.year ? <span> · {doc.year}</span> : null}
+                          {doc.venue ? <span> · {doc.venue}</span> : null}
+                          <span className="lib-paper-file"> · File: <code>{doc.name}</code></span>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="num">{doc.n_chunks}</td>
-                  <td className="num" style={{ whiteSpace: "nowrap" }}>
-                    <button className="ghost" style={{ marginRight: 6 }} disabled={busy} onClick={() => startEdit(doc)}>
-                      Edit details
-                    </button>
-                    <button className="danger" disabled={busy} onClick={() => remove(doc.document_id)}>
-                      Remove
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="num">{doc.n_chunks}</td>
+                    <td className="num" style={{ whiteSpace: "nowrap" }}>
+                      <button className="ghost" style={{ marginRight: 6 }} disabled={busy} onClick={() => startEdit(doc)}>
+                        Edit details
+                      </button>
+                      <button className="danger" disabled={busy} onClick={() => remove(doc.document_id)}>
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -1950,25 +2004,6 @@ function Library({ docs, onChange }) {
 }
 
 const STRUCTURE_COLUMNS = ["objective", "method", "dataset", "metric", "result", "limitation"];
-
-function formatPaperDisplay(doc) {
-  const shortName = doc.name ? doc.name.replace(/\.pdf$/i, "") : "paper";
-  let title = (doc.title || doc.name || "").trim();
-  title = title.replace(/\s+/g, " ");
-  const match = title.search(/(?:\s+(?:by|abstract|university|department)\b)/i);
-  let cleanTitle = match > 15 ? title.slice(0, match).trim() : title;
-  if (cleanTitle.length > 68) {
-    cleanTitle = cleanTitle.slice(0, 65).trim() + "…";
-  }
-  const authors = Array.isArray(doc.authors) && doc.authors.length ? doc.authors.slice(0, 3).join(", ") : "";
-  return {
-    shortName,
-    cleanTitle: cleanTitle || shortName,
-    fullTitle: doc.title || doc.name || "Untitled",
-    authors,
-    year: doc.year,
-  };
-}
 
 function ComparePapers({ docs, prefill, onPrefillConsumed }) {
   const [rows, setRows] = useState([]);
@@ -2261,15 +2296,19 @@ function ComparePapers({ docs, prefill, onPrefillConsumed }) {
               <tbody>
                 {docs.map((doc) => {
                   const record = rows.find((row) => row.document_id === doc.document_id);
-                  return (
-                    <tr key={doc.document_id}>
-                      <td>
-                        <strong>{doc.title || doc.name}</strong>
-                        <div className="status" style={{ margin: 0 }}>
-                          {(doc.authors || []).slice(0, 4).join(", ") || "Unknown author"}
-                          {doc.year ? ` · ${doc.year}` : ""}
-                        </div>
-                      </td>
+                    const meta = formatPaperDisplay(doc);
+                    return (
+                      <tr key={doc.document_id}>
+                        <td>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                            <span className="compare-paper-badge">{meta.shortName}</span>
+                            <strong title={meta.fullTitle}>{meta.cleanTitle}</strong>
+                          </div>
+                          <div className="status" style={{ margin: 0 }}>
+                            {meta.authors || "Unknown author"}
+                            {meta.year ? ` · ${meta.year}` : ""}
+                          </div>
+                        </td>
                       {STRUCTURE_COLUMNS.map((col) => {
                         const field = record?.fields?.[col];
                         const value = (field?.value || "").trim();
