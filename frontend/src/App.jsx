@@ -2673,6 +2673,7 @@ function AnswerView({ result, docs, selected, onSelect }) {
   const mainAnswerText = useMemo(() => {
     return answerText;
   }, [answerText]);
+  const hasPerPaper = Boolean(result.per_paper_summary && result.per_paper_summary.length > 0);
   const canReadAloud = canSpeak && answerText && !looksLikeDumpedJson(result.answer);
 
   useEffect(() => {
