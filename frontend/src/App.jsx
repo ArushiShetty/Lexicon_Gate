@@ -2516,9 +2516,13 @@ function CompareResultView({ result, selectedDocIds, docs, selected, onSelect })
 }
 
 function verificationBadge(result) {
+  if (result.status === "INSUFFICIENT_EVIDENCE" || result.outcome === "insufficient_evidence" || result.abstained) {
+    return { label: "Insufficient evidence", tone: "warn" };
+  }
   const isGeneral =
     result.mode === "general" ||
-    (typeof result.answer === "string" && result.answer.includes("General Knowledge Mode"));
+    result.is_general ||
+    (typeof result.answer === "string" && result.answer.includes("General Knowledge Mode (Cross-Verified Across Online Academic Sources)"));
   if (isGeneral) {
     return { label: "General Knowledge (Online 3× Verified)", tone: "good" };
   }
@@ -2791,7 +2795,8 @@ function AnswerView({ result, docs, selected, onSelect }) {
 
   const isGeneral =
     result.mode === "general" ||
-    (typeof result.answer === "string" && result.answer.includes("General Knowledge Mode"));
+    result.is_general ||
+    (typeof result.answer === "string" && result.answer.includes("General Knowledge Mode (Cross-Verified Across Online Academic Sources)"));
 
   return (
     <div className="chat-answer">
